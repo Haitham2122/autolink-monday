@@ -1,0 +1,264 @@
+"""
+Module pour interagir avec l'API Monday.com
+"""
+import requests
+from typing import Dict, List, Any, Optional
+
+MONDAY_API_URL = "https://api.monday.com/v2"
+
+
+def get_column_value_for_item(api_token: str,
+                              item_id: int,
+                              column_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Récupère la valeur brute (JSON string) et le texte d'une colonne
+    pour un item donné.
+    """
+    query = """
+    query ($item_id: [ID!], $column_id: [String!]) {
+      items (ids: $item_id) {
+        id
+        column_values (ids: $column_id) {
+          id
+          text
+          value
+          type
+        }
+      }
+    }
+    """
+
+    variables = {
+        "item_id": [item_id],
+        "column_id": [column_id]
+    }
+
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+
+    items = data["data"]["items"]
+    if not items:
+        return None  # item non trouvé
+
+    cols = items[0]["column_values"]
+    if not cols:
+        return None  # colonne non trouvée sur cet item
+
+    col = cols[0]
+    return {
+        "id": col["id"],
+        "type": col["type"],
+        "text": col["text"],
+        "value": col["value"],
+    }
+
+
+def get_item_ids_by_column_value(api_token: str,
+                                 board_id: int,
+                                 column_id: str,
+                                 value: str,
+                                 limit: int = 50) -> List[int]:
+    """
+    Return a list of item IDs on `board_id` where `column_id` == `value`
+    using items_page_by_column_values.
+    """
+    query = """
+    query ($board_id: ID!, $column_id: String!, $value: String!, $limit: Int!) {
+      items_page_by_column_values(
+        board_id: $board_id
+        limit: $limit
+        columns: [
+          {
+            column_id: $column_id
+            column_values: [$value]
+          }
+        ]
+      ) {
+        items {
+          id
+        }
+      }
+    }
+    """
+
+    variables = {
+        "board_id": board_id,
+        "column_id": column_id,
+        "value": value,
+        "limit": limit
+    }
+
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+
+    items = data["data"]["items_page_by_column_values"]["items"]
+    return [int(item["id"]) for item in items]
+
+
+def get_all_column_values_for_item(api_token: str,
+                                   item_id: int) -> Dict[str, Dict[str, Any]]:
+    """
+    Récupère TOUTES les colonnes d'un item donné.
+    Retourne un dictionnaire {column_id: {id, type, text, value}}
+    """
+    query = """
+    query ($item_id: [ID!]) {
+      items (ids: $item_id) {
+        id
+        name
+        column_values {
+          id
+          text
+          value
+          type
+        }
+      }
+    }
+    """
+
+    variables = {
+        "item_id": [item_id]
+    }
+
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+
+    items = data["data"]["items"]
+    if not items:
+        return {}
+
+    columns = {}
+    for col in items[0]["column_values"]:
+        columns[col["id"]] = {
+            "id": col["id"],
+            "type": col["type"],
+            "text": col["text"],
+            "value": col["value"]
+        }
+    
+    return columns
+
+
+def update_item_columns(api_token: str,
+                       item_id: int,
+                       board_id: int,
+                       column_values: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Met à jour plusieurs colonnes d'un item en une seule fois.
+    
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item à mettre à jour
+        board_id: ID du board
+        column_values: Dictionnaire {column_id: value_json_string}
+                      où value_json_string est déjà une chaîne JSON
+    
+    Returns:
+        Résultat de la mutation
+    """
+    mutation = """
+    mutation ($board_id: ID!, $item_id: ID!, $column_values: JSON!) {
+      change_multiple_column_values(
+        board_id: $board_id
+        item_id: $item_id
+        column_values: $column_values
+      ) {
+        id
+      }
+    }
+    """
+
+    # Convertir le dictionnaire en JSON string pour Monday.com
+    import json
+    column_values_json = json.dumps(column_values)
+
+    variables = {
+        "board_id": str(board_id),
+        "item_id": str(item_id),
+        "column_values": column_values_json
+    }
+
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": mutation, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+
+    return data["data"]["change_multiple_column_values"]
+
+
+def clear_item_columns(api_token: str,
+                      item_id: int,
+                      board_id: int,
+                      column_ids: List[str]) -> Dict[str, Any]:
+    """
+    Efface les valeurs de colonnes spécifiques en les mettant à vide.
+    
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item
+        board_id: ID du board
+        column_ids: Liste des IDs de colonnes à effacer
+    
+    Returns:
+        Résultat de la mutation
+    """
+    # Créer un dictionnaire avec des valeurs vides pour chaque colonne
+    empty_values = {}
+    for col_id in column_ids:
+        empty_values[col_id] = ""
+    
+    return update_item_columns(api_token, item_id, board_id, empty_values)

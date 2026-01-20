@@ -3,4 +3,5 @@ uvicorn
 gunicorn
 pydantic
 python-multipart==0.0.5
+requests
 

@@ -1,0 +1,16 @@
+{
+  "main_board_id": 9928331862,
+  "admin_board_id": 9962467444,
+  "main_id_column": "text_mkrctj55",
+  "admin_id_column": "text_mkregyd5",
+  "excluded_columns": [
+    "name"
+  ],
+  "description": {
+    "main_board_id": "ID du tableau principal (celui qui envoie le webhook)",
+    "admin_board_id": "ID du tableau admin (celui qui reçoit les mises à jour)",
+    "main_id_column": "ID de la colonne contenant l'ID_admin dans le tableau principal",
+    "admin_id_column": "ID de la colonne contenant l'ID_admin dans le tableau admin",
+    "excluded_columns": "Liste des colonnes à NE PAS transférer (ex: name, mirror columns, etc.)"
+  }
+}
