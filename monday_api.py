@@ -124,17 +124,28 @@ def get_item_ids_by_column_value(api_token: str,
 
 
 def get_all_column_values_for_item(api_token: str,
-                                   item_id: int) -> Dict[str, Dict[str, Any]]:
+                                   item_id: int,
+                                   column_ids: List[str]) -> Dict[str, Any]:
     """
-    Récupère TOUTES les colonnes d'un item donné.
-    Retourne un dictionnaire {column_id: {id, type, text, value}}
+    Récupère les colonnes spécifiques d'un item.
+    
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item à récupérer
+        column_ids: Liste des IDs de colonnes à récupérer
+    
+    Retourne: {
+        "id": item_id,
+        "name": item_name,
+        "columns": {column_id: {id, type, text, value}}
+    }
     """
     query = """
-    query ($item_id: [ID!]) {
+    query ($item_id: [ID!], $column_ids: [String!]) {
       items (ids: $item_id) {
         id
         name
-        column_values {
+        column_values (ids: $column_ids) {
           id
           text
           value
@@ -145,7 +156,8 @@ def get_all_column_values_for_item(api_token: str,
     """
 
     variables = {
-        "item_id": [item_id]
+        "item_id": [item_id],
+        "column_ids": column_ids
     }
 
     headers = {
@@ -167,18 +179,30 @@ def get_all_column_values_for_item(api_token: str,
 
     items = data["data"]["items"]
     if not items:
-        return {}
-
-    columns = {}
-    for col in items[0]["column_values"]:
-        columns[col["id"]] = {
-            "id": col["id"],
-            "type": col["type"],
-            "text": col["text"],
-            "value": col["value"]
+        return {
+            "id": None,
+            "name": None,
+            "columns": {}
         }
+
+    item = items[0]
+    cols = item["column_values"]
     
-    return columns
+    # Créer un dictionnaire des colonnes
+    cols_by_id = {}
+    for c in cols:
+        cols_by_id[c["id"]] = {
+            "id": c["id"],
+            "type": c["type"],
+            "text": c["text"],
+            "value": c["value"]
+        }
+
+    return {
+        "id": item["id"],
+        "name": item["name"],
+        "columns": cols_by_id
+    }
 
 
 def update_item_columns(api_token: str,

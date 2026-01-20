@@ -38,6 +38,11 @@ with open('config.json', 'r', encoding='utf-8') as f:
 with open('column_mapping.json', 'r', encoding='utf-8') as f:
     column_mapping = json.load(f)
 
+# Extraction dynamique des IDs de colonnes du tableau principal depuis le mapping
+principal_column_ids = [mapping['principal']['id'] for mapping in column_mapping]
+logger.info(f"Colonnes à récupérer du tableau principal: {len(principal_column_ids)} colonnes")
+logger.info(f"IDs: {principal_column_ids}")
+
 
 @app.get("/")
 async def root():
