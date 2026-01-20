@@ -205,10 +205,58 @@ def get_all_column_values_for_item(api_token: str,
     }
 
 
+def format_column_value_for_update(column_type: str, raw_value: str) -> Any:
+    """
+    Formate la valeur d'une colonne selon son type pour Monday.com.
+    
+    Args:
+        column_type: Type de la colonne (text, numbers, status, etc.)
+        raw_value: Valeur brute (JSON string) venant de Monday.com
+    
+    Returns:
+        Valeur formatée prête pour change_multiple_column_values
+    """
+    import json
+    
+    # Si la valeur est None ou vide, retourner une string vide
+    if raw_value is None or raw_value == '':
+        return ""
+    
+    # Pour les types simples (text, numbers), retourner directement la valeur parsée
+    if column_type in ['text', 'numbers', 'numeric']:
+        try:
+            # Essayer de parser le JSON pour extraire la valeur
+            parsed = json.loads(raw_value)
+            return parsed if isinstance(parsed, str) else str(parsed)
+        except:
+            return raw_value
+    
+    # Pour les types complexes, parser le JSON et retourner l'objet
+    if column_type in ['status', 'phone', 'email', 'location', 'people', 'date', 'checkbox']:
+        try:
+            return json.loads(raw_value)
+        except:
+            return raw_value
+    
+    # Pour les fichiers, ignorer pour l'instant
+    if column_type == 'file':
+        return None
+    
+    # Pour les formules et autres colonnes read-only, ignorer
+    if column_type in ['formula', 'item_id', 'subtasks', 'mirror']:
+        return None
+    
+    # Par défaut, essayer de parser le JSON
+    try:
+        return json.loads(raw_value)
+    except:
+        return raw_value
+
+
 def update_item_columns(api_token: str,
                        item_id: int,
                        board_id: int,
-                       column_values: Dict[str, str]) -> Dict[str, Any]:
+                       column_values: Dict[str, Any]) -> Dict[str, Any]:
     """
     Met à jour plusieurs colonnes d'un item en une seule fois.
     
@@ -216,12 +264,13 @@ def update_item_columns(api_token: str,
         api_token: Token d'authentification Monday.com
         item_id: ID de l'item à mettre à jour
         board_id: ID du board
-        column_values: Dictionnaire {column_id: value_json_string}
-                      où value_json_string est déjà une chaîne JSON
+        column_values: Dictionnaire {column_id: valeur_formatée}
     
     Returns:
         Résultat de la mutation
     """
+    import json
+    
     mutation = """
     mutation ($board_id: ID!, $item_id: ID!, $column_values: JSON!) {
       change_multiple_column_values(
@@ -235,7 +284,6 @@ def update_item_columns(api_token: str,
     """
 
     # Convertir le dictionnaire en JSON string pour Monday.com
-    import json
     column_values_json = json.dumps(column_values)
 
     variables = {

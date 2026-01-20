@@ -11,7 +11,8 @@ from monday_api import (
     get_item_ids_by_column_value,
     get_all_column_values_for_item,
     update_item_columns,
-    clear_item_columns
+    clear_item_columns,
+    format_column_value_for_update
 )
 
 # Configuration du logging
@@ -61,11 +62,13 @@ async def root():
 @app.post("/auto-link")
 async def auto_link(request: Dict[Any, Any]):
     """
-    Endpoint webhook - TEST des 3 premières étapes
+    Endpoint webhook - Auto-link complet
     
     1. Reçoit le webhook avec l'ID de l'item du tableau principal
     2. Récupère la valeur de la colonne ID_admin de cet item
     3. Cherche l'item correspondant dans le tableau admin
+    4. Récupère les colonnes du tableau principal
+    5. Met à jour le tableau admin avec les valeurs
     """
     try:
         logger.info("=" * 80)
@@ -140,16 +143,72 @@ async def auto_link(request: Dict[Any, Any]):
             text_value = col_data['text'] if col_data['text'] else '(vide)'
             logger.info(f"    - {col_title} ({col_id}): {text_value}")
         
+        # ÉTAPE 5: Préparer et transférer les colonnes vers le tableau admin
         logger.info("=" * 80)
-        logger.info("TEST RÉUSSI - Les 4 étapes fonctionnent correctement!")
+        logger.info("→ ÉTAPE 5 - Transfert des colonnes vers le tableau admin")
+        
+        # Préparer les valeurs à transférer selon le mapping
+        columns_to_transfer = {}
+        transfer_summary = []
+        
+        for mapping_item in column_mapping:
+            principal_col_id = mapping_item['principal']['id']
+            admin_col_id = mapping_item['admin']['id']
+            col_title = mapping_item['principal']['title']
+            
+            # Vérifier si la colonne existe dans les données récupérées
+            if principal_col_id in item_data['columns']:
+                col_data = item_data['columns'][principal_col_id]
+                col_type = col_data['type']
+                raw_value = col_data['value']
+                
+                # Formater la valeur selon le type
+                formatted_value = format_column_value_for_update(col_type, raw_value)
+                
+                # Ignorer si la valeur est None (colonnes read-only, fichiers, etc.)
+                if formatted_value is not None:
+                    columns_to_transfer[admin_col_id] = formatted_value
+                    transfer_summary.append({
+                        'title': col_title,
+                        'type': col_type,
+                        'principal_id': principal_col_id,
+                        'admin_id': admin_col_id,
+                        'value': col_data['text'] if col_data['text'] else '(vide)'
+                    })
+                    logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id}")
+                else:
+                    logger.info(f"  ⊘ {col_title} ({col_type}): ignoré (read-only ou fichier)")
+            else:
+                logger.warning(f"  ✗ {col_title}: colonne {principal_col_id} non trouvée")
+        
+        logger.info(f"✓ ÉTAPE 5 - {len(columns_to_transfer)} colonnes préparées pour le transfert")
+        
+        # ÉTAPE 6: Mise à jour de l'item admin
+        logger.info("=" * 80)
+        logger.info(f"→ ÉTAPE 6 - Mise à jour de l'item admin {id__}")
+        
+        if columns_to_transfer:
+            update_result = update_item_columns(
+                apiKey,
+                id__,
+                config['admin_board_id'],
+                columns_to_transfer
+            )
+            logger.info(f"✓ ÉTAPE 6 - Mise à jour réussie!")
+            logger.info(f"  Item mis à jour: {update_result['id']}")
+        else:
+            logger.warning("⚠ Aucune colonne à transférer!")
+        
+        logger.info("=" * 80)
+        logger.info("AUTO-LINK RÉUSSI - Toutes les étapes fonctionnent correctement!")
         logger.info("=" * 80)
         
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
-                "message": "TEST RÉUSSI - 4 étapes validées",
-                "test_results": {
+                "message": "AUTO-LINK RÉUSSI - Synchronisation complète effectuée",
+                "results": {
                     "etape_1": {
                         "description": "Réception webhook",
                         "status": "✓ OK",
@@ -158,43 +217,45 @@ async def auto_link(request: Dict[Any, Any]):
                     "etape_2": {
                         "description": "Récupération ID_admin",
                         "status": "✓ OK",
-                        "id_admin_value": id_admin_value,
-                        "column_data": id_admin_data
+                        "id_admin_value": id_admin_value
                     },
                     "etape_3": {
                         "description": "Recherche item admin",
                         "status": "✓ OK",
                         "id_admin_trouve": id__,
-                        "nombre_items_trouves": len(admin_item_ids),
-                        "tous_les_ids": admin_item_ids
+                        "nombre_items_trouves": len(admin_item_ids)
                     },
                     "etape_4": {
                         "description": "Récupération données tableau principal",
                         "status": "✓ OK",
                         "item_name": item_data['name'],
-                        "colonnes_recuperees": len(item_data['columns']),
-                        "colonnes_attendues": len(principal_column_ids)
+                        "colonnes_recuperees": len(item_data['columns'])
+                    },
+                    "etape_5": {
+                        "description": "Préparation des colonnes à transférer",
+                        "status": "✓ OK",
+                        "colonnes_preparees": len(columns_to_transfer)
+                    },
+                    "etape_6": {
+                        "description": "Mise à jour item admin",
+                        "status": "✓ OK" if columns_to_transfer else "⚠ SKIP",
+                        "colonnes_transferees": len(columns_to_transfer)
                     }
                 },
-                "item_data": {
-                    "id": item_data['id'],
-                    "name": item_data['name'],
-                    "colonnes": {
-                        col_id: {
-                            "titre": next((m['principal']['title'] for m in column_mapping if m['principal']['id'] == col_id), col_id),
-                            "type": col_data['type'],
-                            "text": col_data['text'],
-                            "value": col_data['value']
-                        }
-                        for col_id, col_data in item_data['columns'].items()
-                    }
+                "transfer_details": {
+                    "item_principal": {
+                        "id": item_data['id'],
+                        "name": item_data['name']
+                    },
+                    "item_admin": {
+                        "id": id__
+                    },
+                    "colonnes_transferees": transfer_summary
                 },
                 "configuration": {
                     "main_board_id": config['main_board_id'],
                     "admin_board_id": config['admin_board_id'],
-                    "main_id_column": config['main_id_column'],
-                    "admin_id_column": config['admin_id_column'],
-                    "colonnes_a_recuperer": len(principal_column_ids)
+                    "id_admin_value": id_admin_value
                 },
                 "timestamp": datetime.utcnow().isoformat()
             }
