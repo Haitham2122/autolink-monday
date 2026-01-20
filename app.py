@@ -120,15 +120,35 @@ async def auto_link(request: Dict[Any, Any]):
         id__ = admin_item_ids[0]
         logger.info(f"✓ ÉTAPE 3 - ID__ (item tableau admin trouvé): {id__}")
         
+        # ÉTAPE 4 (BONUS): Récupérer les données du tableau principal pour voir ce qu'on a
         logger.info("=" * 80)
-        logger.info("TEST RÉUSSI - Les 3 étapes fonctionnent correctement!")
+        logger.info("→ ÉTAPE 4 (BONUS) - Récupération des données du tableau principal")
+        logger.info(f"  Récupération de {len(principal_column_ids)} colonnes")
+        
+        item_data = get_all_column_values_for_item(apiKey, id_, principal_column_ids)
+        
+        logger.info(f"✓ ÉTAPE 4 - Données récupérées")
+        logger.info(f"  ID Item: {item_data['id']}")
+        logger.info(f"  Nom Item: {item_data['name']}")
+        logger.info(f"  Nombre de colonnes récupérées: {len(item_data['columns'])}")
+        
+        # Afficher les colonnes avec leurs valeurs
+        logger.info("  DÉTAIL DES COLONNES:")
+        for col_id, col_data in item_data['columns'].items():
+            # Trouver le titre dans le mapping
+            col_title = next((m['principal']['title'] for m in column_mapping if m['principal']['id'] == col_id), col_id)
+            text_value = col_data['text'] if col_data['text'] else '(vide)'
+            logger.info(f"    - {col_title} ({col_id}): {text_value}")
+        
+        logger.info("=" * 80)
+        logger.info("TEST RÉUSSI - Les 4 étapes fonctionnent correctement!")
         logger.info("=" * 80)
         
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
-                "message": "TEST RÉUSSI - 3 étapes validées",
+                "message": "TEST RÉUSSI - 4 étapes validées",
                 "test_results": {
                     "etape_1": {
                         "description": "Réception webhook",
@@ -147,13 +167,34 @@ async def auto_link(request: Dict[Any, Any]):
                         "id_admin_trouve": id__,
                         "nombre_items_trouves": len(admin_item_ids),
                         "tous_les_ids": admin_item_ids
+                    },
+                    "etape_4": {
+                        "description": "Récupération données tableau principal",
+                        "status": "✓ OK",
+                        "item_name": item_data['name'],
+                        "colonnes_recuperees": len(item_data['columns']),
+                        "colonnes_attendues": len(principal_column_ids)
+                    }
+                },
+                "item_data": {
+                    "id": item_data['id'],
+                    "name": item_data['name'],
+                    "colonnes": {
+                        col_id: {
+                            "titre": next((m['principal']['title'] for m in column_mapping if m['principal']['id'] == col_id), col_id),
+                            "type": col_data['type'],
+                            "text": col_data['text'],
+                            "value": col_data['value']
+                        }
+                        for col_id, col_data in item_data['columns'].items()
                     }
                 },
                 "configuration": {
                     "main_board_id": config['main_board_id'],
                     "admin_board_id": config['admin_board_id'],
                     "main_id_column": config['main_id_column'],
-                    "admin_id_column": config['admin_id_column']
+                    "admin_id_column": config['admin_id_column'],
+                    "colonnes_a_recuperer": len(principal_column_ids)
                 },
                 "timestamp": datetime.utcnow().isoformat()
             }
