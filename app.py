@@ -14,7 +14,8 @@ from monday_api import (
     clear_item_columns,
     format_column_value_for_update,
     update_status_column,
-    add_file_to_column
+    add_file_to_column,
+    get_item_assets
 )
 
 # Configuration du logging
@@ -137,6 +138,22 @@ async def auto_link(request: Dict[Any, Any]):
         logger.info(f"  Nom Item: {item_data['name']}")
         logger.info(f"  Nombre de colonnes récupérées: {len(item_data['columns'])}")
         
+        # ÉTAPE 4B: Récupérer les assets (fichiers) de l'item principal
+        logger.info(f"→ ÉTAPE 4B - Récupération des assets (fichiers)")
+        assets = get_item_assets(apiKey, id_)
+        logger.info(f"✓ ÉTAPE 4B - {len(assets)} assets récupérés")
+        
+        # Créer un dictionnaire assetId -> asset_info pour mapping rapide
+        assets_by_id = {}
+        for asset in assets:
+            assets_by_id[asset['id']] = {
+                'name': asset['name'],
+                'public_url': asset['public_url'],
+                'file_extension': asset.get('file_extension', ''),
+                'file_size': asset.get('file_size', 0)
+            }
+        logger.info(f"  Assets indexés par ID pour mapping")
+        
         # Afficher les colonnes avec leurs valeurs
         logger.info("  DÉTAIL DES COLONNES:")
         for col_id, col_data in item_data['columns'].items():
@@ -185,18 +202,34 @@ async def auto_link(request: Dict[Any, Any]):
                         logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [par texte: '{text_value}']")
                     # Si c'est un fichier à copier, le traiter séparément
                     elif isinstance(formatted_value, dict) and formatted_value.get("copy_files"):
-                        file_columns[admin_col_id] = {
-                            'title': col_title,
-                            'files': formatted_value['files']
-                        }
-                        transfer_summary.append({
-                            'title': col_title,
-                            'type': col_type,
-                            'principal_id': principal_col_id,
-                            'admin_id': admin_col_id,
-                            'value': f"{len(formatted_value['files'])} fichier(s)"
-                        })
-                        logger.info(f"  📎 {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [{len(formatted_value['files'])} fichier(s) à copier]")
+                        # Mapper les assetIds vers les public_urls
+                        asset_ids = formatted_value['asset_ids']
+                        files_info = []
+                        
+                        for asset_id in asset_ids:
+                            if asset_id in assets_by_id:
+                                asset_info = assets_by_id[asset_id]
+                                files_info.append({
+                                    'asset_id': asset_id,
+                                    'name': asset_info['name'],
+                                    'public_url': asset_info['public_url'],
+                                    'file_extension': asset_info['file_extension'],
+                                    'file_size': asset_info['file_size']
+                                })
+                        
+                        if files_info:
+                            file_columns[admin_col_id] = {
+                                'title': col_title,
+                                'files': files_info
+                            }
+                            transfer_summary.append({
+                                'title': col_title,
+                                'type': col_type,
+                                'principal_id': principal_col_id,
+                                'admin_id': admin_col_id,
+                                'value': f"{len(files_info)} fichier(s)"
+                            })
+                            logger.info(f"  📎 {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [{len(files_info)} fichier(s) à copier]")
                     else:
                         columns_to_transfer[admin_col_id] = formatted_value
                         transfer_summary.append({
@@ -257,7 +290,7 @@ async def auto_link(request: Dict[Any, Any]):
         else:
             logger.info("⊘ Aucune colonne status à transférer")
         
-        # ÉTAPE 6C: Copie des fichiers (un par un)
+        # ÉTAPE 6C: Copie des fichiers (mapping précis par colonne)
         if file_columns:
             logger.info("=" * 80)
             logger.info(f"→ ÉTAPE 6C - Copie des fichiers ({len(file_columns)} colonnes)")
@@ -281,28 +314,30 @@ async def auto_link(request: Dict[Any, Any]):
                 except Exception as e:
                     logger.error(f"    ✗ Erreur vidage colonne: {e}")
                 
-                # ÉTAPE 6C.2: Copier les nouveaux fichiers
+                # ÉTAPE 6C.2: Copier les nouveaux fichiers via public_url
                 for file_data in files_to_copy:
                     file_name = file_data.get('name', 'fichier_sans_nom')
-                    file_url = file_data.get('url')
+                    public_url = file_data.get('public_url')
+                    file_size = file_data.get('file_size', 0)
                     
-                    if not file_url:
-                        logger.warning(f"    ✗ Fichier '{file_name}': pas d'URL disponible")
+                    if not public_url:
+                        logger.warning(f"    ✗ Fichier '{file_name}': pas de public_url disponible")
                         continue
                     
                     try:
+                        # Télécharger et uploader le fichier
                         add_file_to_column(
                             apiKey,
                             id__,
                             file_col_id,
-                            file_url,
+                            public_url,
                             file_name
                         )
-                        logger.info(f"    ✓ Fichier copié: {file_name}")
+                        logger.info(f"    ✓ Fichier copié: {file_name} ({file_size/1024:.2f} KB)")
                     except Exception as e:
                         logger.error(f"    ✗ Erreur copie fichier '{file_name}': {e}")
             
-            logger.info(f"✓ ÉTAPE 6C - Fichiers copiés!")
+            logger.info(f"✓ ÉTAPE 6C - Fichiers copiés par colonne avec mapping précis!")
         else:
             logger.info("⊘ Aucun fichier à copier")
         
@@ -337,6 +372,11 @@ async def auto_link(request: Dict[Any, Any]):
                         "status": "✓ OK",
                         "item_name": item_data['name'],
                         "colonnes_recuperees": len(item_data['columns'])
+                    },
+                    "etape_4b": {
+                        "description": "Récupération assets (fichiers)",
+                        "status": "✓ OK",
+                        "assets_recuperes": len(assets)
                     },
                     "etape_5": {
                         "description": "Préparation des colonnes à transférer",

@@ -310,16 +310,17 @@ def format_column_value_for_update(column_type: str, raw_value: str, text_value:
         except:
             return raw_value
     
-    # Pour les fichiers, retourner les infos pour copie ultérieure
+    # Pour les fichiers, retourner les assetIds pour mapping avec public_url
     if column_type == 'file':
         try:
             import json
             parsed = json.loads(raw_value) if raw_value else None
-            if parsed and 'files' in parsed:
-                # Retourner un flag spécial avec les fichiers à copier
+            if parsed and 'files' in parsed and parsed['files']:
+                # Retourner un flag spécial avec les assetIds
+                asset_ids = [str(f['assetId']) for f in parsed['files']]
                 return {
                     "copy_files": True,
-                    "files": parsed['files']  # Liste des fichiers avec leurs URLs
+                    "asset_ids": asset_ids  # Liste des assetIds à mapper
                 }
             else:
                 # Pas de fichiers, vider la colonne
@@ -432,6 +433,60 @@ def clear_item_columns(api_token: str,
         empty_values[col_id] = ""
     
     return update_item_columns(api_token, item_id, board_id, empty_values)
+
+
+def get_item_assets(api_token: str, item_id: int) -> List[Dict[str, Any]]:
+    """
+    Récupère tous les assets (fichiers) d'un item avec leurs URLs publiques.
+    
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item
+    
+    Returns:
+        Liste des assets avec id, name, public_url, file_extension, file_size
+    """
+    query = """
+    query ($item_id: [ID!]) {
+      items (ids: $item_id) {
+        id
+        assets {
+          id
+          name
+          public_url
+          file_extension
+          file_size
+        }
+      }
+    }
+    """
+    
+    variables = {
+        "item_id": [item_id]
+    }
+    
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+    
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+    
+    items = data["data"]["items"]
+    if not items:
+        return []
+    
+    return items[0].get("assets", [])
 
 
 def add_file_to_column(api_token: str,
