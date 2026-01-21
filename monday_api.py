@@ -310,9 +310,9 @@ def format_column_value_for_update(column_type: str, raw_value: str, text_value:
         except:
             return raw_value
     
-    # Pour les fichiers, ignorer pour l'instant
+    # Pour les fichiers, vider la colonne dans le tableau admin
     if column_type == 'file':
-        return None
+        return {"clear_all": True}
     
     # Pour les formules et autres colonnes read-only, ignorer
     # Liste complète des types non modifiables

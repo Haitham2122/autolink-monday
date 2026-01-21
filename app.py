@@ -190,7 +190,11 @@ async def auto_link(request: Dict[Any, Any]):
                             'admin_id': admin_col_id,
                             'value': text_value if text_value else '(vide)'
                         })
-                        logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id}")
+                        # Log spécial pour les fichiers vidés
+                        if col_type == 'file':
+                            logger.info(f"  🗑️ {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [VIDÉ]")
+                        else:
+                            logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id}")
                 else:
                     logger.info(f"  ⊘ {col_title} ({col_type}): ignoré (read-only ou fichier)")
             else:
