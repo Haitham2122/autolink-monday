@@ -12,7 +12,8 @@ from monday_api import (
     get_all_column_values_for_item,
     update_item_columns,
     clear_item_columns,
-    format_column_value_for_update
+    format_column_value_for_update,
+    update_status_column
 )
 
 # Configuration du logging
@@ -149,6 +150,7 @@ async def auto_link(request: Dict[Any, Any]):
         
         # Préparer les valeurs à transférer selon le mapping
         columns_to_transfer = {}
+        status_columns = {}  # Colonnes status à traiter séparément
         transfer_summary = []
         
         for mapping_item in column_mapping:
@@ -161,31 +163,45 @@ async def auto_link(request: Dict[Any, Any]):
                 col_data = item_data['columns'][principal_col_id]
                 col_type = col_data['type']
                 raw_value = col_data['value']
+                text_value = col_data['text']
                 
                 # Formater la valeur selon le type
-                formatted_value = format_column_value_for_update(col_type, raw_value)
+                formatted_value = format_column_value_for_update(col_type, raw_value, text_value)
                 
                 # Ignorer si la valeur est None (colonnes read-only, fichiers, etc.)
                 if formatted_value is not None:
-                    columns_to_transfer[admin_col_id] = formatted_value
-                    transfer_summary.append({
-                        'title': col_title,
-                        'type': col_type,
-                        'principal_id': principal_col_id,
-                        'admin_id': admin_col_id,
-                        'value': col_data['text'] if col_data['text'] else '(vide)'
-                    })
-                    logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id}")
+                    # Si c'est un status, le traiter séparément
+                    if isinstance(formatted_value, dict) and formatted_value.get("use_text"):
+                        status_columns[admin_col_id] = formatted_value["text"]
+                        transfer_summary.append({
+                            'title': col_title,
+                            'type': col_type,
+                            'principal_id': principal_col_id,
+                            'admin_id': admin_col_id,
+                            'value': text_value if text_value else '(vide)'
+                        })
+                        logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [par texte: '{text_value}']")
+                    else:
+                        columns_to_transfer[admin_col_id] = formatted_value
+                        transfer_summary.append({
+                            'title': col_title,
+                            'type': col_type,
+                            'principal_id': principal_col_id,
+                            'admin_id': admin_col_id,
+                            'value': text_value if text_value else '(vide)'
+                        })
+                        logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id}")
                 else:
                     logger.info(f"  ⊘ {col_title} ({col_type}): ignoré (read-only ou fichier)")
             else:
                 logger.warning(f"  ✗ {col_title}: colonne {principal_col_id} non trouvée")
         
-        logger.info(f"✓ ÉTAPE 5 - {len(columns_to_transfer)} colonnes préparées pour le transfert")
+        total_columns = len(columns_to_transfer) + len(status_columns)
+        logger.info(f"✓ ÉTAPE 5 - {total_columns} colonnes préparées ({len(columns_to_transfer)} normales + {len(status_columns)} status)")
         
-        # ÉTAPE 6: Mise à jour de l'item admin
+        # ÉTAPE 6A: Mise à jour des colonnes normales (en batch)
         logger.info("=" * 80)
-        logger.info(f"→ ÉTAPE 6 - Mise à jour de l'item admin {id__}")
+        logger.info(f"→ ÉTAPE 6A - Mise à jour des colonnes normales ({len(columns_to_transfer)} colonnes)")
         
         if columns_to_transfer:
             update_result = update_item_columns(
@@ -194,10 +210,32 @@ async def auto_link(request: Dict[Any, Any]):
                 config['admin_board_id'],
                 columns_to_transfer
             )
-            logger.info(f"✓ ÉTAPE 6 - Mise à jour réussie!")
+            logger.info(f"✓ ÉTAPE 6A - Colonnes normales mises à jour!")
             logger.info(f"  Item mis à jour: {update_result['id']}")
         else:
-            logger.warning("⚠ Aucune colonne à transférer!")
+            logger.info("⊘ Aucune colonne normale à transférer")
+        
+        # ÉTAPE 6B: Mise à jour des colonnes status (une par une, par texte)
+        if status_columns:
+            logger.info("=" * 80)
+            logger.info(f"→ ÉTAPE 6B - Mise à jour des colonnes status ({len(status_columns)} colonnes)")
+            
+            for status_col_id, status_text in status_columns.items():
+                try:
+                    update_status_column(
+                        apiKey,
+                        id__,
+                        config['admin_board_id'],
+                        status_col_id,
+                        status_text
+                    )
+                    logger.info(f"  ✓ Status mis à jour: {status_col_id} = '{status_text}'")
+                except Exception as e:
+                    logger.error(f"  ✗ Erreur status {status_col_id}: {e}")
+            
+            logger.info(f"✓ ÉTAPE 6B - Statuts mis à jour par texte!")
+        else:
+            logger.info("⊘ Aucune colonne status à transférer")
         
         logger.info("=" * 80)
         logger.info("AUTO-LINK RÉUSSI - Toutes les étapes fonctionnent correctement!")

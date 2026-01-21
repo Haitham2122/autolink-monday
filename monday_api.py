@@ -205,16 +205,77 @@ def get_all_column_values_for_item(api_token: str,
     }
 
 
-def format_column_value_for_update(column_type: str, raw_value: str) -> Any:
+def update_status_column(api_token: str,
+                        item_id: int,
+                        board_id: int,
+                        column_id: str,
+                        label_value: str) -> str:
+    """
+    Met à jour une colonne status en utilisant le label (texte) au lieu de l'index.
+    Crée le label s'il n'existe pas.
+    
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item
+        board_id: ID du board
+        column_id: ID de la colonne status
+        label_value: Texte du statut (ex: "Terminé", "En cours")
+    
+    Returns:
+        ID de l'item mis à jour
+    """
+    query = """
+    mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: String, $create: Boolean) {
+      change_simple_column_value(
+        board_id: $boardId,
+        item_id: $itemId,
+        column_id: $columnId,
+        value: $value,
+        create_labels_if_missing: $create
+      ) { id }
+    }
+    """
+    
+    variables = {
+        "boardId": str(board_id),
+        "itemId": str(item_id),
+        "columnId": column_id,
+        "value": label_value,
+        "create": True
+    }
+    
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+    
+    resp = requests.post(
+        MONDAY_API_URL,
+        headers=headers,
+        json={"query": query, "variables": variables},
+        timeout=60
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+    
+    return data["data"]["change_simple_column_value"]["id"]
+
+
+def format_column_value_for_update(column_type: str, raw_value: str, text_value: str = None) -> Any:
     """
     Formate la valeur d'une colonne selon son type pour Monday.com.
     
     Args:
         column_type: Type de la colonne (text, numbers, status, etc.)
         raw_value: Valeur brute (JSON string) venant de Monday.com
+        text_value: Valeur texte lisible (utilisée pour les status)
     
     Returns:
         Valeur formatée prête pour change_multiple_column_values
+        Pour les status: dict spécial {"use_text": True, "text": "..."}
     """
     import json
     
@@ -231,8 +292,19 @@ def format_column_value_for_update(column_type: str, raw_value: str) -> Any:
         except:
             return raw_value
     
-    # Pour les types complexes, parser le JSON et retourner l'objet
-    if column_type in ['status', 'phone', 'email', 'location', 'people', 'date', 'checkbox']:
+    # Pour STATUS : retourner le texte au lieu de l'index !
+    if column_type == 'status':
+        # Si on a le text_value, l'utiliser (c'est le label visible)
+        if text_value:
+            return {
+                "use_text": True,  # Flag pour traitement spécial
+                "text": text_value  # Le label du statut
+            }
+        # Sinon, ignorer (on ne peut pas transférer sans le texte)
+        return None
+    
+    # Pour les types complexes (sauf status), parser le JSON et retourner l'objet
+    if column_type in ['phone', 'email', 'location', 'people', 'date', 'checkbox']:
         try:
             return json.loads(raw_value)
         except:
