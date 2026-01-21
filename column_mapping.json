@@ -5,7 +5,6 @@
   { "principal": { "id": "t_l_phone_mkmc3r2q", "title": "Téléphone" }, "admin": { "id": "t_l_phone_mkmc3r2q", "title": "Téléphone" } },
   { "principal": { "id": "e_mail_mkmcdb1r", "title": "E-mail" }, "admin": { "id": "e_mail_mkmcdb1r", "title": "E-mail" } },
   { "principal": { "id": "text_mkwpbsk7", "title": "UTM" }, "admin": { "id": "text_mkp5348c", "title": "UTM" } },
-  { "principal": { "id": "text_mknmb75q", "title": "Région" }, "admin": { "id": "dropdown_mkpjpbkz", "title": "Région" } },
 
   { "principal": { "id": "color_mkxxz5hb", "title": "Tipo de edificio" }, "admin": { "id": "color_mkxxj3rs", "title": "Tipo de edificio" } },
   { "principal": { "id": "color_mksvy31y", "title": "Type plancher" }, "admin": { "id": "color_mkrjewaw", "title": "Type plancher" } },
