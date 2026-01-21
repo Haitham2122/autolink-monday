@@ -24,8 +24,8 @@
   { "principal": { "id": "numeric_mksrev61", "title": "Uf" }, "admin": { "id": "numeric_mkq0bknz", "title": "Uf" } },
   { "principal": { "id": "numeric_mkwkzagz", "title": "b (final)" }, "admin": { "id": "numeric_mkwkz0ke", "title": "b (final)" } },
 
-  { "principal": { "id": "fichier_mkmfwabk", "title": "Visite Technique" }, "admin": { "id": "fichier_mkmfwabk", "title": "VT / photos" } },
-
+  { "principal": { "id": "file_mkqpmcsn", "title": "Visite Technique" }, "admin": { "id": "file_mkqpmcsn", "title": "VT / photos" } },
+  { "principal": { "id": "file_mkqpmcsn", "title": "V2-CE3X + XML" }, "admin": { "id": "dup__of_cee_final_mkmp3s2g", "title": "V1-CE3X + XML" } },
   { "principal": { "id": "file_mkrbf4z5", "title": "V2-CE3X + XML" }, "admin": { "id": "file_mkqp4n1g", "title": "V2-CE3X + XML" } },
   { "principal": { "id": "dup__of_cex3_cee_v1_mkmpr0s4", "title": "V3-CE3X + XML" }, "admin": { "id": "file_mknxdbsc", "title": "V3-CE3X + XML" } },
   { "principal": { "id": "dup__of_cee_final_mkmqz3vm", "title": "CEE initial" }, "admin": { "id": "fichier_mkmftkns", "title": "CEE initial" } },
