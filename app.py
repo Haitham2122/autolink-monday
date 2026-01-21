@@ -13,7 +13,8 @@ from monday_api import (
     update_item_columns,
     clear_item_columns,
     format_column_value_for_update,
-    update_status_column
+    update_status_column,
+    add_file_to_column
 )
 
 # Configuration du logging
@@ -151,6 +152,7 @@ async def auto_link(request: Dict[Any, Any]):
         # Préparer les valeurs à transférer selon le mapping
         columns_to_transfer = {}
         status_columns = {}  # Colonnes status à traiter séparément
+        file_columns = {}  # Colonnes fichiers à traiter séparément
         transfer_summary = []
         
         for mapping_item in column_mapping:
@@ -168,7 +170,7 @@ async def auto_link(request: Dict[Any, Any]):
                 # Formater la valeur selon le type
                 formatted_value = format_column_value_for_update(col_type, raw_value, text_value)
                 
-                # Ignorer si la valeur est None (colonnes read-only, fichiers, etc.)
+                # Ignorer si la valeur est None (colonnes read-only, etc.)
                 if formatted_value is not None:
                     # Si c'est un status, le traiter séparément
                     if isinstance(formatted_value, dict) and formatted_value.get("use_text"):
@@ -181,6 +183,20 @@ async def auto_link(request: Dict[Any, Any]):
                             'value': text_value if text_value else '(vide)'
                         })
                         logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [par texte: '{text_value}']")
+                    # Si c'est un fichier à copier, le traiter séparément
+                    elif isinstance(formatted_value, dict) and formatted_value.get("copy_files"):
+                        file_columns[admin_col_id] = {
+                            'title': col_title,
+                            'files': formatted_value['files']
+                        }
+                        transfer_summary.append({
+                            'title': col_title,
+                            'type': col_type,
+                            'principal_id': principal_col_id,
+                            'admin_id': admin_col_id,
+                            'value': f"{len(formatted_value['files'])} fichier(s)"
+                        })
+                        logger.info(f"  📎 {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [{len(formatted_value['files'])} fichier(s) à copier]")
                     else:
                         columns_to_transfer[admin_col_id] = formatted_value
                         transfer_summary.append({
@@ -191,17 +207,17 @@ async def auto_link(request: Dict[Any, Any]):
                             'value': text_value if text_value else '(vide)'
                         })
                         # Log spécial pour les fichiers vidés
-                        if col_type == 'file':
+                        if col_type == 'file' and isinstance(formatted_value, dict) and formatted_value.get("clear_all"):
                             logger.info(f"  🗑️ {col_title} ({col_type}): {principal_col_id} → {admin_col_id} [VIDÉ]")
                         else:
                             logger.info(f"  ✓ {col_title} ({col_type}): {principal_col_id} → {admin_col_id}")
                 else:
-                    logger.info(f"  ⊘ {col_title} ({col_type}): ignoré (read-only ou fichier)")
+                    logger.info(f"  ⊘ {col_title} ({col_type}): ignoré (read-only)")
             else:
                 logger.warning(f"  ✗ {col_title}: colonne {principal_col_id} non trouvée")
         
-        total_columns = len(columns_to_transfer) + len(status_columns)
-        logger.info(f"✓ ÉTAPE 5 - {total_columns} colonnes préparées ({len(columns_to_transfer)} normales + {len(status_columns)} status)")
+        total_columns = len(columns_to_transfer) + len(status_columns) + len(file_columns)
+        logger.info(f"✓ ÉTAPE 5 - {total_columns} colonnes préparées ({len(columns_to_transfer)} normales + {len(status_columns)} status + {len(file_columns)} fichiers)")
         
         # ÉTAPE 6A: Mise à jour des colonnes normales (en batch)
         logger.info("=" * 80)
@@ -240,6 +256,41 @@ async def auto_link(request: Dict[Any, Any]):
             logger.info(f"✓ ÉTAPE 6B - Statuts mis à jour par texte!")
         else:
             logger.info("⊘ Aucune colonne status à transférer")
+        
+        # ÉTAPE 6C: Copie des fichiers (un par un)
+        if file_columns:
+            logger.info("=" * 80)
+            logger.info(f"→ ÉTAPE 6C - Copie des fichiers ({len(file_columns)} colonnes)")
+            
+            for file_col_id, file_info in file_columns.items():
+                col_title = file_info['title']
+                files_to_copy = file_info['files']
+                
+                logger.info(f"  → Colonne '{col_title}' ({file_col_id}): {len(files_to_copy)} fichier(s)")
+                
+                for file_data in files_to_copy:
+                    file_name = file_data.get('name', 'fichier_sans_nom')
+                    file_url = file_data.get('url')
+                    
+                    if not file_url:
+                        logger.warning(f"    ✗ Fichier '{file_name}': pas d'URL disponible")
+                        continue
+                    
+                    try:
+                        add_file_to_column(
+                            apiKey,
+                            id__,
+                            file_col_id,
+                            file_url,
+                            file_name
+                        )
+                        logger.info(f"    ✓ Fichier copié: {file_name}")
+                    except Exception as e:
+                        logger.error(f"    ✗ Erreur copie fichier '{file_name}': {e}")
+            
+            logger.info(f"✓ ÉTAPE 6C - Fichiers copiés!")
+        else:
+            logger.info("⊘ Aucun fichier à copier")
         
         logger.info("=" * 80)
         logger.info("AUTO-LINK RÉUSSI - Toutes les étapes fonctionnent correctement!")

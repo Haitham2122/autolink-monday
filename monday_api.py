@@ -310,9 +310,22 @@ def format_column_value_for_update(column_type: str, raw_value: str, text_value:
         except:
             return raw_value
     
-    # Pour les fichiers, vider la colonne dans le tableau admin
+    # Pour les fichiers, retourner les infos pour copie ultérieure
     if column_type == 'file':
-        return {"clear_all": True}
+        try:
+            import json
+            parsed = json.loads(raw_value) if raw_value else None
+            if parsed and 'files' in parsed:
+                # Retourner un flag spécial avec les fichiers à copier
+                return {
+                    "copy_files": True,
+                    "files": parsed['files']  # Liste des fichiers avec leurs URLs
+                }
+            else:
+                # Pas de fichiers, vider la colonne
+                return {"clear_all": True}
+        except:
+            return {"clear_all": True}
     
     # Pour les formules et autres colonnes read-only, ignorer
     # Liste complète des types non modifiables
@@ -419,3 +432,85 @@ def clear_item_columns(api_token: str,
         empty_values[col_id] = ""
     
     return update_item_columns(api_token, item_id, board_id, empty_values)
+
+
+def add_file_to_column(api_token: str,
+                       item_id: int,
+                       column_id: str,
+                       file_url: str,
+                       file_name: str) -> Dict[str, Any]:
+    """
+    Upload un fichier depuis une URL vers une colonne fichier Monday.com.
+    
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item
+        column_id: ID de la colonne fichier
+        file_url: URL du fichier à télécharger
+        file_name: Nom du fichier
+    
+    Returns:
+        Résultat de la mutation
+    """
+    import tempfile
+    import os
+    
+    # Télécharger le fichier depuis l'URL
+    file_response = requests.get(file_url, timeout=60)
+    file_response.raise_for_status()
+    
+    # Créer un fichier temporaire
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp_file:
+        tmp_file.write(file_response.content)
+        tmp_file_path = tmp_file.name
+    
+    try:
+        # Préparer la mutation GraphQL
+        query = """
+        mutation ($file: File!) {
+          add_file_to_column(
+            item_id: %s
+            column_id: "%s"
+            file: $file
+          ) {
+            id
+          }
+        }
+        """ % (item_id, column_id)
+        
+        # Ouvrir le fichier et l'envoyer
+        with open(tmp_file_path, 'rb') as f:
+            files = {
+                'variables[file]': (file_name, f, 'application/octet-stream')
+            }
+            
+            data = {
+                'query': query
+            }
+            
+            headers = {
+                "Authorization": api_token
+                # Ne pas mettre Content-Type, requests le gère automatiquement pour multipart
+            }
+            
+            # Utiliser l'endpoint file de Monday.com
+            file_api_url = "https://api.monday.com/v2/file"
+            resp = requests.post(
+                file_api_url,
+                files=files,
+                data=data,
+                headers=headers,
+                timeout=120  # Timeout plus long pour les fichiers
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            
+            if "errors" in result:
+                raise RuntimeError(result["errors"])
+            
+            return result["data"]["add_file_to_column"]
+    
+    finally:
+        # Nettoyer le fichier temporaire
+        if os.path.exists(tmp_file_path):
+            os.remove(tmp_file_path)
