@@ -9,7 +9,7 @@
   { "principal": { "id": "color_mkxxz5hb", "title": "Tipo de edificio" }, "admin": { "id": "color_mkxxj3rs", "title": "Tipo de edificio" } },
   { "principal": { "id": "color_mksvy31y", "title": "Type plancher" }, "admin": { "id": "color_mkrjewaw", "title": "Type plancher" } },
   { "principal": { "id": "color_mkrzhbsa", "title": "Type d'isolant" }, "admin": { "id": "color_mkpn27pn", "title": "Type d'isolant" } },
-  { "principal": { "id": "color_mksv91eq", "title": "Ventilation" }, "admin": { "id": "color_mkw5axny", "title": "Ventilation" } },
+
 
   { "principal": { "id": "chiffres_mkmccczh", "title": "SHAB" }, "admin": { "id": "chiffres_mkmccczh", "title": "S.U.HABIT." } },
 
