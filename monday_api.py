@@ -231,19 +231,8 @@ def format_column_value_for_update(column_type: str, raw_value: str) -> Any:
         except:
             return raw_value
     
-    # Pour STATUS et DROPDOWN : utiliser l'INDEX uniquement (évite les problèmes de labels différents)
-    if column_type in ['status', 'dropdown']:
-        try:
-            parsed = json.loads(raw_value)
-            # Retourner uniquement l'index (pas le label qui peut différer)
-            if isinstance(parsed, dict) and 'index' in parsed:
-                return {"index": parsed['index']}
-            return parsed
-        except:
-            return raw_value
-    
-    # Pour les autres types complexes, parser le JSON et retourner l'objet
-    if column_type in ['phone', 'email', 'location', 'people', 'date', 'checkbox']:
+    # Pour les types complexes, parser le JSON et retourner l'objet
+    if column_type in ['status', 'phone', 'email', 'location', 'people', 'date', 'checkbox']:
         try:
             return json.loads(raw_value)
         except:
