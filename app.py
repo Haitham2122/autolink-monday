@@ -268,6 +268,20 @@ async def auto_link(request: Dict[Any, Any]):
                 
                 logger.info(f"  → Colonne '{col_title}' ({file_col_id}): {len(files_to_copy)} fichier(s)")
                 
+                # ÉTAPE 6C.1: Vider la colonne fichier AVANT de copier
+                try:
+                    logger.info(f"    🗑️ Vidage de la colonne avant copie...")
+                    update_item_columns(
+                        apiKey,
+                        id__,
+                        config['admin_board_id'],
+                        {file_col_id: {"clear_all": True}}
+                    )
+                    logger.info(f"    ✓ Colonne vidée")
+                except Exception as e:
+                    logger.error(f"    ✗ Erreur vidage colonne: {e}")
+                
+                # ÉTAPE 6C.2: Copier les nouveaux fichiers
                 for file_data in files_to_copy:
                     file_name = file_data.get('name', 'fichier_sans_nom')
                     file_url = file_data.get('url')
