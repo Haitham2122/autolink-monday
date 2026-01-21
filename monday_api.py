@@ -243,7 +243,20 @@ def format_column_value_for_update(column_type: str, raw_value: str) -> Any:
         return None
     
     # Pour les formules et autres colonnes read-only, ignorer
-    if column_type in ['formula', 'item_id', 'subtasks', 'mirror']:
+    # Liste complète des types non modifiables
+    read_only_types = [
+        'formula',           # Formules
+        'item_id',          # ID de l'item
+        'subtasks',         # Sous-tâches
+        'mirror',           # Colonnes miroir
+        'dependency',       # Dépendances
+        'auto_number',      # Numérotation auto
+        'creation_log',     # Log de création
+        'last_updated'      # Dernière mise à jour
+    ]
+    
+    # Vérifier aussi en lowercase car Monday peut retourner différents formats
+    if column_type.lower() in read_only_types or 'formula' in column_type.lower():
         return None
     
     # Par défaut, essayer de parser le JSON
