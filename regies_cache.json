@@ -1,0 +1,695 @@
+{
+  "jordan v2": {
+    "board_id": 9147746553,
+    "board_name": "Régie JORDAN V2",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "jadel v2": {
+    "board_id": 9147989500,
+    "board_name": "Régie JADEL V2",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "tony v2": {
+    "board_id": 9148068792,
+    "board_name": "Régie TONY V2",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "hakim v2": {
+    "board_id": 9149464325,
+    "board_name": "Régie HAKIM V2",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "gonzalo v2": {
+    "board_id": 9182221079,
+    "board_name": "Régie GONZALO V2",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut  ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "menahem": {
+    "board_id": 9200817774,
+    "board_name": "Régie Menahem",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "datarena interne": {
+    "board_id": 9219060751,
+    "board_name": "Régie DATARENA Interne",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "salvador": {
+    "board_id": 9265497423,
+    "board_name": "Régie Salvador",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "yadelli": {
+    "board_id": 9360630207,
+    "board_name": "Régie Yadelli",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "sdel": {
+    "board_id": 9391733416,
+    "board_name": "Régie SDEL",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "khs": {
+    "board_id": 9440339067,
+    "board_name": "REGIE KHS",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "mijita": {
+    "board_id": 9900407930,
+    "board_name": "Régie MIJITA",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "madras energy solution": {
+    "board_id": 9900825448,
+    "board_name": "Régie Madras Energy solution",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "laynacall": {
+    "board_id": 9930904289,
+    "board_name": "Régie Laynacall",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "make call": {
+    "board_id": 10079190135,
+    "board_name": "Régie Make Call",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "akram.isma": {
+    "board_id": 18002085209,
+    "board_name": "Régie Akram.isma",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "bhm verdenova": {
+    "board_id": 18052059409,
+    "board_name": "Régie BHM verdenova",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "fama call": {
+    "board_id": 18075804018,
+    "board_name": "Régie Fama call",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "cms factory": {
+    "board_id": 18085768399,
+    "board_name": "Régie CMS Factory",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "msn call": {
+    "board_id": 18115803065,
+    "board_name": "Régie MSN call",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "updy": {
+    "board_id": 18127349072,
+    "board_name": "Régie Updy",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "digital action": {
+    "board_id": 18149830675,
+    "board_name": "Régie Digital Action",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "koah": {
+    "board_id": 18181325425,
+    "board_name": "Régie KOAH",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "expertos renovaciones": {
+    "board_id": 18316967176,
+    "board_name": "Régie Expertos Renovaciones",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "meba shore": {
+    "board_id": 18331640996,
+    "board_name": "Régie Meba Shore",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "mba énergie": {
+    "board_id": 18354246089,
+    "board_name": "Régie MBA énergie",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "black wolf center": {
+    "board_id": 18387370371,
+    "board_name": "Régie Black Wolf Center",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "nexoragency": {
+    "board_id": 18390590047,
+    "board_name": "Régie Nexoragency",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "aisla tu hogar": {
+    "board_id": 18393892726,
+    "board_name": "Régie Aisla Tu Hogar",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "mco co": {
+    "board_id": 18394391221,
+    "board_name": "Régie MCO CO",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut     ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble    ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant ↘️",
+        "type": "status"
+      }
+    }
+  },
+  "vgroup": {
+    "board_id": 18395534243,
+    "board_name": "Régie Vgroup",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "renovacion energia total": {
+    "board_id": 18395694337,
+    "board_name": "Régie Renovacion Energia Total",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut   ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble  ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  },
+  "aislacion viva": {
+    "board_id": 18396826069,
+    "board_name": "Régie AISLACION VIVA",
+    "columns": {
+      "statut": {
+        "id": "statut_mkn3ggpf",
+        "title": "Statut    ↘️",
+        "type": "status"
+      },
+      "surface_comble": {
+        "id": "chiffres__1",
+        "title": "Surface comble   ↘️",
+        "type": "numbers"
+      },
+      "type_isolant": {
+        "id": "color_mkntxe2m",
+        "title": "Type d'isolant",
+        "type": "status"
+      }
+    }
+  }
+}

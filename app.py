@@ -42,10 +42,19 @@ with open('config.json', 'r', encoding='utf-8') as f:
 with open('column_mapping.json', 'r', encoding='utf-8') as f:
     column_mapping = json.load(f)
 
+# Chargement de la configuration Install -> Régie
+with open('config_install_regie.json', 'r', encoding='utf-8') as f:
+    config_install_regie = json.load(f)
+
+# Chargement du cache des régies
+with open('regies_cache.json', 'r', encoding='utf-8') as f:
+    regies_cache = json.load(f)
+
 # Extraction dynamique des IDs de colonnes du tableau principal depuis le mapping
 principal_column_ids = [mapping['principal']['id'] for mapping in column_mapping]
 logger.info(f"Colonnes à récupérer du tableau principal: {len(principal_column_ids)} colonnes")
 logger.info(f"IDs: {principal_column_ids}")
+logger.info(f"Régies en cache: {len(regies_cache)} régies")
 
 
 @app.get("/")
@@ -55,9 +64,14 @@ async def root():
         "message": "Monday.com Auto-Link System",
         "status": "running",
         "timestamp": datetime.utcnow().isoformat(),
+        "endpoints": {
+            "auto-link": "/auto-link (Principal → Admin)",
+            "install-to-regie": "/install-to-regie (Install → Régie)"
+        },
         "config": {
             "admin_board_id": config["admin_board_id"],
-            "excluded_columns": config["excluded_columns"]
+            "install_board_id": config_install_regie["install_board_id"],
+            "regies_in_cache": len(regies_cache)
         }
     }
 
@@ -412,6 +426,237 @@ async def auto_link(request: Dict[Any, Any]):
         raise
     except Exception as e:
         logger.error(f"ERREUR lors du test: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+
+def normalize_regie_name(name: str) -> str:
+    """Normalise le nom de la régie pour la recherche dans le cache"""
+    import re
+    return re.sub(r'\s+', ' ', name.lower().strip())
+
+
+def get_regie_info_from_cache(regie_name: str) -> dict:
+    """
+    Récupère les infos d'une régie depuis le cache.
+    
+    Args:
+        regie_name: Nom de la régie (valeur du status)
+    
+    Returns:
+        Infos de la régie ou None si non trouvée
+    """
+    cache_key = normalize_regie_name(regie_name)
+    
+    # Recherche exacte
+    if cache_key in regies_cache:
+        return regies_cache[cache_key]
+    
+    # Recherche partielle
+    for key, data in regies_cache.items():
+        if cache_key in key or key in cache_key:
+            return data
+    
+    return None
+
+
+@app.post("/install-to-regie")
+async def install_to_regie(request: Dict[Any, Any]):
+    """
+    Endpoint webhook - Synchronisation Install → Régie
+    
+    Flux simplifié:
+    1. Reçoit le webhook avec l'ID de l'item Install
+    2. Récupère le nom de la régie (status) et l'ID de l'item Régie
+    3. Récupère les 3 colonnes sources du tableau Install
+    4. Met à jour les 3 colonnes dans le tableau Régie correspondant
+    """
+    try:
+        logger.info("=" * 80)
+        logger.info("Webhook Install-to-Régie reçu")
+        logger.info(f"Payload: {json.dumps(request, indent=2)}")
+        
+        # ÉTAPE 1: Extraire l'ID de l'item Install
+        event = request.get('event', {})
+        install_item_id = int(event.get('pulseId'))
+        logger.info(f"✓ ÉTAPE 1 - ID item Install: {install_item_id}")
+        
+        # ÉTAPE 2: Récupérer le nom de la régie et l'ID de l'item Régie
+        logger.info(f"→ ÉTAPE 2 - Récupération des infos de liaison")
+        
+        # Colonnes à récupérer: nom régie + ID item régie
+        columns_to_get = [
+            config_install_regie['regie_name_column'],
+            config_install_regie['regie_item_id_column']
+        ]
+        
+        # Récupérer les valeurs
+        install_data = get_all_column_values_for_item(apiKey, install_item_id, columns_to_get)
+        
+        if not install_data or not install_data.get('columns'):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item Install {install_item_id} non trouvé ou colonnes manquantes"
+            )
+        
+        # Extraire le nom de la régie
+        regie_name_col = install_data['columns'].get(config_install_regie['regie_name_column'])
+        if not regie_name_col or not regie_name_col.get('text'):
+            raise HTTPException(
+                status_code=400,
+                detail="Nom de la régie non trouvé dans l'item Install"
+            )
+        regie_name = regie_name_col['text']
+        logger.info(f"   Nom régie: {regie_name}")
+        
+        # Extraire l'ID de l'item Régie
+        regie_item_id_col = install_data['columns'].get(config_install_regie['regie_item_id_column'])
+        if not regie_item_id_col or not regie_item_id_col.get('text'):
+            raise HTTPException(
+                status_code=400,
+                detail="ID de l'item Régie non trouvé dans l'item Install"
+            )
+        regie_item_id = int(regie_item_id_col['text'])
+        logger.info(f"   ID item Régie: {regie_item_id}")
+        
+        # Récupérer les infos de la régie depuis le cache
+        regie_info = get_regie_info_from_cache(regie_name)
+        if not regie_info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Régie '{regie_name}' non trouvée dans le cache"
+            )
+        
+        regie_board_id = regie_info['board_id']
+        logger.info(f"   Board Régie: {regie_info['board_name']} (ID: {regie_board_id})")
+        logger.info(f"✓ ÉTAPE 2 - Infos de liaison récupérées")
+        
+        # ÉTAPE 3: Récupérer les 3 colonnes sources du tableau Install
+        logger.info(f"→ ÉTAPE 3 - Récupération des 3 colonnes sources")
+        
+        source_column_ids = [
+            config_install_regie['column_mapping']['statut']['install_id'],
+            config_install_regie['column_mapping']['surface_comble']['install_id'],
+            config_install_regie['column_mapping']['type_isolant']['install_id']
+        ]
+        
+        install_columns_data = get_all_column_values_for_item(apiKey, install_item_id, source_column_ids)
+        
+        logger.info(f"   Colonnes récupérées:")
+        for col_id, col_data in install_columns_data['columns'].items():
+            logger.info(f"      {col_id}: {col_data.get('text', '(vide)')}")
+        
+        logger.info(f"✓ ÉTAPE 3 - Colonnes sources récupérées")
+        
+        # ÉTAPE 4: Préparer et mettre à jour les colonnes dans le tableau Régie
+        logger.info(f"→ ÉTAPE 4 - Mise à jour du tableau Régie")
+        
+        columns_to_update = {}
+        status_columns = {}  # Pour les colonnes status (traitement spécial)
+        transfer_summary = []
+        
+        for mapping_key, mapping_data in config_install_regie['column_mapping'].items():
+            install_col_id = mapping_data['install_id']
+            regie_col_key = mapping_data['regie_key']
+            
+            # Récupérer l'ID de la colonne cible depuis le cache
+            regie_col_info = regie_info['columns'].get(regie_col_key)
+            if not regie_col_info:
+                logger.warning(f"   ⚠️ Colonne '{regie_col_key}' non trouvée dans le cache pour cette régie")
+                continue
+            
+            regie_col_id = regie_col_info['id']
+            regie_col_type = regie_col_info['type']
+            
+            # Récupérer la valeur source
+            source_col = install_columns_data['columns'].get(install_col_id)
+            if not source_col:
+                logger.warning(f"   ⚠️ Colonne source '{install_col_id}' non trouvée")
+                continue
+            
+            source_value = source_col.get('value')
+            source_text = source_col.get('text')
+            source_type = source_col.get('type')
+            
+            # Formater la valeur selon le type
+            formatted_value = format_column_value_for_update(source_type, source_value, source_text)
+            
+            if formatted_value is not None:
+                # Si c'est un status, utiliser le texte
+                if isinstance(formatted_value, dict) and formatted_value.get("use_text"):
+                    status_columns[regie_col_id] = formatted_value["text"]
+                    transfer_summary.append({
+                        'source': mapping_data['install_title'],
+                        'target': regie_col_key,
+                        'value': source_text
+                    })
+                    logger.info(f"   ✓ {mapping_data['install_title']} → {regie_col_key}: '{source_text}' (status)")
+                else:
+                    columns_to_update[regie_col_id] = formatted_value
+                    transfer_summary.append({
+                        'source': mapping_data['install_title'],
+                        'target': regie_col_key,
+                        'value': source_text
+                    })
+                    logger.info(f"   ✓ {mapping_data['install_title']} → {regie_col_key}: '{source_text}'")
+        
+        # Mise à jour des colonnes normales (en batch)
+        if columns_to_update:
+            update_result = update_item_columns(
+                apiKey,
+                regie_item_id,
+                regie_board_id,
+                columns_to_update
+            )
+            logger.info(f"   ✓ Colonnes normales mises à jour")
+        
+        # Mise à jour des colonnes status (une par une, par texte)
+        for status_col_id, status_text in status_columns.items():
+            try:
+                update_status_column(
+                    apiKey,
+                    regie_item_id,
+                    regie_board_id,
+                    status_col_id,
+                    status_text
+                )
+                logger.info(f"   ✓ Status mis à jour: {status_col_id} = '{status_text}'")
+            except Exception as e:
+                logger.error(f"   ✗ Erreur status {status_col_id}: {e}")
+        
+        logger.info(f"✓ ÉTAPE 4 - Tableau Régie mis à jour")
+        
+        logger.info("=" * 80)
+        logger.info("INSTALL-TO-RÉGIE RÉUSSI!")
+        logger.info("=" * 80)
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Synchronisation Install → Régie réussie",
+                "results": {
+                    "install_item_id": install_item_id,
+                    "regie_name": regie_name,
+                    "regie_board_id": regie_board_id,
+                    "regie_item_id": regie_item_id,
+                    "columns_updated": len(transfer_summary)
+                },
+                "transfer_details": transfer_summary,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERREUR Install-to-Régie: {e}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={

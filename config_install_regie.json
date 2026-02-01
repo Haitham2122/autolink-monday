@@ -1,0 +1,28 @@
+{
+  "install_board_id": 9145949863,
+  "regie_item_id_column": "text_mkrcpxdd",
+  "regie_name_column": "color_mky6kej3",
+  "column_mapping": {
+    "statut": {
+      "install_id": "color_mkqyezd7",
+      "install_title": "Statut ↗️",
+      "regie_key": "statut"
+    },
+    "surface_comble": {
+      "install_id": "dup__of_shab_mkmm8jcr",
+      "install_title": "Surface poseurs",
+      "regie_key": "surface_comble"
+    },
+    "type_isolant": {
+      "install_id": "color_mkr33df8",
+      "install_title": "Isolant",
+      "regie_key": "type_isolant"
+    }
+  },
+  "description": {
+    "install_board_id": "ID du tableau Install (source des webhooks)",
+    "regie_item_id_column": "Colonne contenant l'ID de l'item dans le tableau Régie",
+    "regie_name_column": "Colonne status contenant le nom de la régie",
+    "column_mapping": "Mapping des colonnes Install -> Régie (les IDs cibles sont dans regies_cache.json)"
+  }
+}
