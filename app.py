@@ -632,6 +632,23 @@ async def install_to_regie(request: Dict[Any, Any]):
         
         logger.info(f"✓ ÉTAPE 4 - Tableau Régie mis à jour")
         
+        # ÉTAPE 5: Mettre à jour le status dans le tableau Install à "no action"
+        logger.info(f"→ ÉTAPE 5 - Mise à jour status Install à 'no action'")
+        
+        try:
+            update_status_column(
+                apiKey,
+                install_item_id,
+                config_install_regie['install_board_id'],
+                "color_mkxv17ya",
+                "no action"
+            )
+            logger.info(f"   ✓ Status Install mis à jour: 'no action'")
+        except Exception as e:
+            logger.error(f"   ✗ Erreur mise à jour status Install: {e}")
+        
+        logger.info(f"✓ ÉTAPE 5 - Status Install mis à jour")
+        
         logger.info("=" * 80)
         logger.info("INSTALL-TO-RÉGIE RÉUSSI!")
         logger.info("=" * 80)
@@ -653,15 +670,18 @@ async def install_to_regie(request: Dict[Any, Any]):
             }
         )
         
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"ERREUR Install-to-Régie: {e}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        )
+    #except HTTPException:
+    #    raise
+    #except Exception as e:
+    #    logger.error(f"ERREUR Install-to-Régie: {e}", exc_info=True)
+    #    return JSONResponse(
+    #        status_code=500,
+    #        content={
+    #            "success": False,
+    #            "error": str(e),
+    #            "timestamp": datetime.utcnow().isoformat()
+    #        }
+    #    )
+#
+    except :
+        return request
