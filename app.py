@@ -670,18 +670,15 @@ async def install_to_regie(request: Dict[Any, Any]):
             }
         )
         
-    #except HTTPException:
-    #    raise
-    #except Exception as e:
-    #    logger.error(f"ERREUR Install-to-Régie: {e}", exc_info=True)
-    #    return JSONResponse(
-    #        status_code=500,
-    #        content={
-    #            "success": False,
-    #            "error": str(e),
-    #            "timestamp": datetime.utcnow().isoformat()
-    #        }
-    #    )
-#
-    except :
-        return request
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERREUR Install-to-Régie: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
