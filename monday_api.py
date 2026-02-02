@@ -569,3 +569,97 @@ def add_file_to_column(api_token: str,
         # Nettoyer le fichier temporaire
         if os.path.exists(tmp_file_path):
             os.remove(tmp_file_path)
+
+
+def add_update_to_item(api_token: str,
+                       item_id: int,
+                       body: str) -> Dict[str, Any]:
+    """
+    Ajoute un commentaire/update à un item Monday.com.
+    
+    Args:
+        api_token: Token API Monday.com
+        item_id: ID de l'item
+        body: Texte du commentaire (supporte le HTML basique)
+    
+    Returns:
+        Infos de l'update créé
+    """
+    query = """
+    mutation ($item_id: ID!, $body: String!) {
+        create_update (
+            item_id: $item_id,
+            body: $body
+        ) {
+            id
+            body
+            created_at
+        }
+    }
+    """
+    
+    variables = {
+        "item_id": item_id,
+        "body": body
+    }
+    
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+    
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+    
+    return data["data"]["create_update"]
+
+
+def check_item_exists(api_token: str, item_id: int) -> bool:
+    """
+    Vérifie si un item existe dans Monday.com.
+    
+    Args:
+        api_token: Token API Monday.com
+        item_id: ID de l'item à vérifier
+    
+    Returns:
+        True si l'item existe, False sinon
+    """
+    query = """
+    query ($item_id: [ID!]) {
+        items (ids: $item_id) {
+            id
+        }
+    }
+    """
+    
+    variables = {"item_id": [item_id]}
+    
+    headers = {
+        "Authorization": api_token,
+        "Content-Type": "application/json"
+    }
+    
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    
+    if "errors" in data:
+        return False
+    
+    items = data.get("data", {}).get("items", [])
+    return len(items) > 0

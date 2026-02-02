@@ -15,7 +15,9 @@ from monday_api import (
     format_column_value_for_update,
     update_status_column,
     add_file_to_column,
-    get_item_assets
+    get_item_assets,
+    add_update_to_item,
+    check_item_exists
 )
 
 # Configuration du logging
@@ -628,6 +630,36 @@ async def install_to_regie(request: Dict[Any, Any]):
                         'value': source_text
                     })
                     logger.info(f"   ✓ {mapping_data['install_title']} → {regie_col_key}: '{source_text}'")
+        
+        # Vérifier que l'item Régie existe avant la mise à jour
+        if not check_item_exists(apiKey, regie_item_id):
+            error_msg = f"⚠️ ERREUR AUTO-LINK: L'item Régie ID {regie_item_id} n'existe pas dans le tableau {regie_info['board_name']} (ID: {regie_board_id}). Veuillez vérifier l'ID de liaison."
+            logger.error(f"   ✗ {error_msg}")
+            
+            # Ajouter un commentaire dans le tableau Install
+            try:
+                add_update_to_item(apiKey, install_item_id, error_msg)
+                logger.info(f"   📝 Commentaire ajouté dans l'item Install")
+            except Exception as e:
+                logger.error(f"   ✗ Erreur ajout commentaire: {e}")
+            
+            # Mettre le status à "erreur" ou similaire (optionnel)
+            try:
+                update_status_column(
+                    apiKey,
+                    install_item_id,
+                    config_install_regie['install_board_id'],
+                    "color_mkxv17ya",
+                    "Erreur"
+                )
+                logger.info(f"   ✓ Status Install mis à 'Erreur'")
+            except Exception as e:
+                logger.error(f"   ✗ Erreur mise à jour status: {e}")
+            
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item Régie {regie_item_id} non trouvé dans le tableau {regie_info['board_name']}"
+            )
         
         # Mise à jour des colonnes normales (en batch)
         if columns_to_update:
