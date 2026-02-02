@@ -533,11 +533,11 @@ async def install_to_regie(request: Dict[Any, Any]):
         regie_item_id_text = regie_item_id_col.get('text') if regie_item_id_col else None
         
         if not regie_item_id_text:
-            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie est VIDE. La colonne 'ID item Régie' doit être renseignée pour synchroniser vers le tableau {regie_name}."
+            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie est VIDE dans la colonne {config_install_regie['regie_item_id_column']}. Veuillez renseigner l'ID de liaison."
             logger.error(f"   ✗ ID item Régie VIDE - Colonne {config_install_regie['regie_item_id_column']}")
             logger.error(f"   Données colonne: {regie_item_id_col}")
             
-            # Ajouter un commentaire dans l'item Install
+            # Ajouter un commentaire dans le tableau Install
             try:
                 add_update_to_item(apiKey, install_item_id, error_msg)
                 logger.info(f"   📝 Commentaire ajouté dans l'item Install")
@@ -565,29 +565,7 @@ async def install_to_regie(request: Dict[Any, Any]):
         try:
             regie_item_id = int(regie_item_id_text)
         except ValueError:
-            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie '{regie_item_id_text}' n'est pas un nombre valide."
             logger.error(f"   ✗ ID item Régie invalide: '{regie_item_id_text}' n'est pas un nombre")
-            
-            # Ajouter un commentaire dans l'item Install
-            try:
-                add_update_to_item(apiKey, install_item_id, error_msg)
-                logger.info(f"   📝 Commentaire ajouté dans l'item Install")
-            except Exception as e:
-                logger.error(f"   ✗ Erreur ajout commentaire: {e}")
-            
-            # Mettre le status à "Erreur"
-            try:
-                update_status_column(
-                    apiKey,
-                    install_item_id,
-                    config_install_regie['install_board_id'],
-                    "color_mkxv17ya",
-                    "Erreur"
-                )
-                logger.info(f"   ✓ Status Install mis à 'Erreur'")
-            except Exception as e:
-                logger.error(f"   ✗ Erreur mise à jour status: {e}")
-            
             raise HTTPException(
                 status_code=400,
                 detail=f"ID de l'item Régie invalide: '{regie_item_id_text}'"
