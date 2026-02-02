@@ -533,11 +533,11 @@ async def install_to_regie(request: Dict[Any, Any]):
         regie_item_id_text = regie_item_id_col.get('text') if regie_item_id_col else None
         
         if not regie_item_id_text:
-            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie est VIDE. La colonne de liaison n'est pas renseignée. Veuillez créer l'item dans le tableau Régie {regie_name} et renseigner son ID."
+            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie est VIDE. La colonne 'ID item Régie' doit être renseignée pour synchroniser vers le tableau {regie_name}."
             logger.error(f"   ✗ ID item Régie VIDE - Colonne {config_install_regie['regie_item_id_column']}")
             logger.error(f"   Données colonne: {regie_item_id_col}")
             
-            # Ajouter un commentaire dans le tableau Install
+            # Ajouter un commentaire dans l'item Install
             try:
                 add_update_to_item(apiKey, install_item_id, error_msg)
                 logger.info(f"   📝 Commentaire ajouté dans l'item Install")
@@ -565,10 +565,10 @@ async def install_to_regie(request: Dict[Any, Any]):
         try:
             regie_item_id = int(regie_item_id_text)
         except ValueError:
-            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie '{regie_item_id_text}' n'est pas un nombre valide. Veuillez corriger l'ID."
+            error_msg = f"⚠️ ERREUR AUTO-LINK: L'ID de l'item Régie '{regie_item_id_text}' n'est pas un nombre valide."
             logger.error(f"   ✗ ID item Régie invalide: '{regie_item_id_text}' n'est pas un nombre")
             
-            # Ajouter un commentaire dans le tableau Install
+            # Ajouter un commentaire dans l'item Install
             try:
                 add_update_to_item(apiKey, install_item_id, error_msg)
                 logger.info(f"   📝 Commentaire ajouté dans l'item Install")
