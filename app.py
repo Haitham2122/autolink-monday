@@ -495,34 +495,57 @@ async def install_to_regie(request: Dict[Any, Any]):
             config_install_regie['regie_name_column'],
             config_install_regie['regie_item_id_column']
         ]
+        logger.info(f"   Colonnes à récupérer: {columns_to_get}")
         
         # Récupérer les valeurs
         install_data = get_all_column_values_for_item(apiKey, install_item_id, columns_to_get)
         
         if not install_data or not install_data.get('columns'):
+            logger.error(f"   ✗ Item Install {install_item_id} non trouvé ou colonnes manquantes")
+            logger.error(f"   install_data = {install_data}")
             raise HTTPException(
                 status_code=404,
                 detail=f"Item Install {install_item_id} non trouvé ou colonnes manquantes"
             )
         
+        # Log des colonnes récupérées
+        logger.info(f"   Colonnes récupérées: {list(install_data['columns'].keys())}")
+        for col_id, col_data in install_data['columns'].items():
+            logger.info(f"     - {col_id}: text='{col_data.get('text')}', type={col_data.get('type')}")
+        
         # Extraire le nom de la régie
         regie_name_col = install_data['columns'].get(config_install_regie['regie_name_column'])
-        if not regie_name_col or not regie_name_col.get('text'):
+        regie_name = regie_name_col.get('text') if regie_name_col else None
+        
+        if not regie_name:
+            logger.error(f"   ✗ Nom de la régie VIDE - Colonne {config_install_regie['regie_name_column']}")
+            logger.error(f"   Données colonne: {regie_name_col}")
             raise HTTPException(
                 status_code=400,
-                detail="Nom de la régie non trouvé dans l'item Install"
+                detail=f"Nom de la régie non renseigné dans l'item Install {install_item_id}"
             )
-        regie_name = regie_name_col['text']
         logger.info(f"   Nom régie: {regie_name}")
         
         # Extraire l'ID de l'item Régie
         regie_item_id_col = install_data['columns'].get(config_install_regie['regie_item_id_column'])
-        if not regie_item_id_col or not regie_item_id_col.get('text'):
+        regie_item_id_text = regie_item_id_col.get('text') if regie_item_id_col else None
+        
+        if not regie_item_id_text:
+            logger.error(f"   ✗ ID item Régie VIDE - Colonne {config_install_regie['regie_item_id_column']}")
+            logger.error(f"   Données colonne: {regie_item_id_col}")
             raise HTTPException(
                 status_code=400,
-                detail="ID de l'item Régie non trouvé dans l'item Install"
+                detail=f"ID de l'item Régie non renseigné dans l'item Install {install_item_id}"
             )
-        regie_item_id = int(regie_item_id_col['text'])
+        
+        try:
+            regie_item_id = int(regie_item_id_text)
+        except ValueError:
+            logger.error(f"   ✗ ID item Régie invalide: '{regie_item_id_text}' n'est pas un nombre")
+            raise HTTPException(
+                status_code=400,
+                detail=f"ID de l'item Régie invalide: '{regie_item_id_text}'"
+            )
         logger.info(f"   ID item Régie: {regie_item_id}")
         
         # Récupérer les infos de la régie depuis le cache
