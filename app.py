@@ -452,7 +452,7 @@ def normalize_regie_name(name: str) -> str:
 def get_regie_board_from_api(regie_name: str) -> dict:
     """
     Récupère les infos d'une régie depuis l'API Monday.com.
-    Cherche dans le dossier "Régies" du workspace.
+    Cherche dans le workspace les boards dont le nom contient "Régie + nom".
     
     Ex: regie_name = "euroenergy" → cherche "Régie Euroenergy", etc.
     """
@@ -464,44 +464,13 @@ def get_regie_board_from_api(regie_name: str) -> dict:
     
     logger.info(f"   🔎 Recherche API pour régie: '{regie_name}'")
     
-    # 1. Récupérer l'ID du dossier "Régies"
-    query_folders = """
-    query ($workspace_id: [ID!]) {
-        folders (workspace_ids: $workspace_id) {
-            id
-            name
-        }
-    }
-    """
-    
-    response = requests.post(
-        MONDAY_API_URL,
-        headers=headers,
-        json={"query": query_folders, "variables": {"workspace_id": [str(WORKSPACE_ID)]}}
-    )
-    result = response.json()
-    
-    folders = result.get("data", {}).get("folders", [])
-    logger.info(f"   📁 Dossiers trouvés: {[f['name'] for f in folders]}")
-    
-    folder_id = None
-    for folder in folders:
-        if "régie" in folder["name"].lower() or "regie" in folder["name"].lower():
-            folder_id = int(folder["id"])
-            logger.info(f"   📁 Dossier Régies trouvé: ID {folder_id}")
-            break
-    
-    if not folder_id:
-        logger.error("Dossier 'Régies' non trouvé dans le workspace")
-        return None
-    
-    # 2. Récupérer TOUS les tableaux du dossier (avec pagination)
+    # Récupérer TOUS les tableaux du workspace (avec pagination)
     all_boards = []
     page = 1
     while True:
         query_boards = """
-        query ($folder_id: [ID!], $page: Int!) {
-            boards (folder_ids: $folder_id, limit: 50, page: $page) {
+        query ($workspace_id: [ID!], $page: Int!) {
+            boards (workspace_ids: $workspace_id, limit: 50, page: $page) {
                 id
                 name
             }
@@ -511,7 +480,7 @@ def get_regie_board_from_api(regie_name: str) -> dict:
         response = requests.post(
             MONDAY_API_URL,
             headers=headers,
-            json={"query": query_boards, "variables": {"folder_id": [folder_id], "page": page}}
+            json={"query": query_boards, "variables": {"workspace_id": [WORKSPACE_ID], "page": page}}
         )
         result = response.json()
         
@@ -525,15 +494,19 @@ def get_regie_board_from_api(regie_name: str) -> dict:
         if page > 10:  # Sécurité max 500 boards
             break
     
-    logger.info(f"   📋 {len(all_boards)} boards trouvés dans le dossier Régies")
+    logger.info(f"   📋 {len(all_boards)} boards trouvés dans le workspace")
     
-    # 3. Chercher le tableau correspondant au nom de la régie
+    # Chercher le tableau correspondant au nom de la régie
     normalized_name = normalize_regie_name(regie_name)
     target_board = None
     
     for board in all_boards:
         board_name = board["name"]
         board_name_lower = board_name.lower()
+        
+        # Ignorer les sous-éléments
+        if "sous-élément" in board_name_lower or "subitems" in board_name_lower:
+            continue
         
         # Vérifier si le nom du board contient "régie"
         if "régie" in board_name_lower or "regie" in board_name_lower:
@@ -549,7 +522,9 @@ def get_regie_board_from_api(regie_name: str) -> dict:
     
     if not target_board:
         logger.error(f"   ❌ Aucun tableau trouvé pour la régie '{regie_name}'")
-        logger.error(f"   📋 Boards disponibles: {[b['name'] for b in all_boards[:20]]}...")
+        # Logger quelques boards "Régie" pour debug
+        regie_boards = [b['name'] for b in all_boards if 'régie' in b['name'].lower() or 'regie' in b['name'].lower()][:10]
+        logger.error(f"   📋 Boards Régie disponibles: {regie_boards}")
         return None
     
     board_id = int(target_board["id"])
