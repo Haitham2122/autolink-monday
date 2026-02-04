@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 import json
 import logging
+import requests
+import re
 
 # Import des fonctions Monday.com
 from monday_api import (
@@ -35,6 +37,10 @@ app = FastAPI(
 
 # Configuration Monday.com API
 apiKey = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjUyNTUxMDkxOCwiYWFpIjoxMSwidWlkIjo3NjM3MTkxNiwiaWFkIjoiMjAyNS0wNi0xMlQxMjowMjowNi4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MTQ5ODgzMDQsInJnbiI6InVzZTEifQ.g8M5fmXYZ3eNUQWiPpnKmPHf1K0wrwdqi2HJFFl1P0Q"
+
+# Configuration API Monday.com pour récupération dynamique
+MONDAY_API_URL = "https://api.monday.com/v2"
+WORKSPACE_ID = 10987132
 
 # Chargement de la configuration
 with open('config.json', 'r', encoding='utf-8') as f:
@@ -440,30 +446,180 @@ async def auto_link(request: Dict[Any, Any]):
 
 def normalize_regie_name(name: str) -> str:
     """Normalise le nom de la régie pour la recherche dans le cache"""
-    import re
     return re.sub(r'\s+', ' ', name.lower().strip())
+
+
+def get_regie_board_from_api(regie_name: str) -> dict:
+    """
+    Récupère les infos d'une régie depuis l'API Monday.com.
+    Cherche dans le dossier "Régies" du workspace.
+    
+    Ex: regie_name = "euro" → cherche "Régie euro", "Régie Euro V2", etc.
+    """
+    headers = {
+        "Authorization": apiKey,
+        "Content-Type": "application/json",
+        "API-Version": "2023-07"
+    }
+    
+    # 1. Récupérer l'ID du dossier "Régies"
+    query_folders = """
+    query ($workspace_id: [ID!]) {
+        folders (workspace_ids: $workspace_id) {
+            id
+            name
+        }
+    }
+    """
+    
+    response = requests.post(
+        MONDAY_API_URL,
+        headers=headers,
+        json={"query": query_folders, "variables": {"workspace_id": [str(WORKSPACE_ID)]}}
+    )
+    result = response.json()
+    
+    folders = result.get("data", {}).get("folders", [])
+    folder_id = None
+    for folder in folders:
+        if folder["name"].lower() == "régies":
+            folder_id = int(folder["id"])
+            break
+    
+    if not folder_id:
+        logger.error("Dossier 'Régies' non trouvé dans le workspace")
+        return None
+    
+    # 2. Récupérer les tableaux du dossier
+    query_boards = """
+    query ($folder_id: [ID!]) {
+        boards (folder_ids: $folder_id, limit: 100) {
+            id
+            name
+        }
+    }
+    """
+    
+    response = requests.post(
+        MONDAY_API_URL,
+        headers=headers,
+        json={"query": query_boards, "variables": {"folder_id": [folder_id]}}
+    )
+    result = response.json()
+    
+    boards = result.get("data", {}).get("boards", [])
+    
+    # 3. Chercher le tableau correspondant au nom de la régie
+    # Ex: "euro" → cherche "Régie euro", "Régie Euro V2", "REGIE EURO", etc.
+    normalized_name = normalize_regie_name(regie_name)
+    target_board = None
+    
+    for board in boards:
+        board_name = board["name"]
+        board_name_lower = board_name.lower()
+        
+        # Vérifier si le nom du board contient "régie" + le nom recherché
+        if "régie" in board_name_lower or "regie" in board_name_lower:
+            # Extraire le nom après "Régie " ou "REGIE "
+            extracted = re.sub(r'^r[ée]gie\s+', '', board_name_lower, flags=re.IGNORECASE)
+            # Enlever "V2", "V3", etc.
+            extracted = re.sub(r'\s*v\d+\s*$', '', extracted, flags=re.IGNORECASE).strip()
+            
+            if normalized_name == extracted or normalized_name in extracted or extracted in normalized_name:
+                target_board = board
+                logger.info(f"   🎯 Board trouvé: '{board_name}' pour régie '{regie_name}'")
+                break
+    
+    if not target_board:
+        logger.error(f"Aucun tableau trouvé pour la régie '{regie_name}'")
+        return None
+    
+    board_id = int(target_board["id"])
+    board_name = target_board["name"]
+    
+    # 4. Récupérer les colonnes du tableau
+    query_columns = """
+    query ($board_id: ID!) {
+        boards (ids: [$board_id]) {
+            columns {
+                id
+                title
+                type
+            }
+        }
+    }
+    """
+    
+    response = requests.post(
+        MONDAY_API_URL,
+        headers=headers,
+        json={"query": query_columns, "variables": {"board_id": board_id}}
+    )
+    result = response.json()
+    
+    columns = result.get("data", {}).get("boards", [{}])[0].get("columns", [])
+    
+    # 5. Chercher les 3 colonnes cibles
+    found_columns = {}
+    for col in columns:
+        col_title_lower = col["title"].lower()
+        
+        if "statut" in col_title_lower and "statut" not in found_columns:
+            found_columns["statut"] = {"id": col["id"], "title": col["title"], "type": col["type"]}
+        elif "surface" in col_title_lower and "comble" in col_title_lower:
+            found_columns["surface_comble"] = {"id": col["id"], "title": col["title"], "type": col["type"]}
+        elif "isolant" in col_title_lower:
+            found_columns["type_isolant"] = {"id": col["id"], "title": col["title"], "type": col["type"]}
+    
+    logger.info(f"   📊 Colonnes trouvées: {list(found_columns.keys())}")
+    
+    return {
+        "board_id": board_id,
+        "board_name": board_name,
+        "columns": found_columns
+    }
+
+
+def add_regie_to_cache(regie_name: str, regie_info: dict):
+    """Ajoute une régie au cache et sauvegarde le fichier."""
+    global regies_cache
+    
+    cache_key = normalize_regie_name(regie_name)
+    regies_cache[cache_key] = regie_info
+    
+    # Sauvegarder le cache
+    with open('regies_cache.json', 'w', encoding='utf-8') as f:
+        json.dump(regies_cache, f, ensure_ascii=False, indent=2)
+    
+    logger.info(f"   💾 Régie '{regie_name}' ajoutée au cache (clé: '{cache_key}')")
 
 
 def get_regie_info_from_cache(regie_name: str) -> dict:
     """
     Récupère les infos d'une régie depuis le cache.
-    
-    Args:
-        regie_name: Nom de la régie (valeur du status)
-    
-    Returns:
-        Infos de la régie ou None si non trouvée
+    Si non trouvée, tente de la récupérer depuis l'API et l'ajoute au cache.
     """
     cache_key = normalize_regie_name(regie_name)
     
     # Recherche exacte
     if cache_key in regies_cache:
+        logger.info(f"   📦 Cache HIT: '{cache_key}'")
         return regies_cache[cache_key]
     
     # Recherche partielle
     for key, data in regies_cache.items():
         if cache_key in key or key in cache_key:
+            logger.info(f"   📦 Cache HIT (partiel): '{cache_key}' → '{key}'")
             return data
+    
+    # Non trouvé dans le cache → récupérer depuis l'API
+    logger.info(f"   🔍 Cache MISS: '{cache_key}' - Récupération depuis l'API...")
+    
+    regie_info = get_regie_board_from_api(regie_name)
+    
+    if regie_info:
+        add_regie_to_cache(regie_name, regie_info)
+        return regie_info
     
     return None
 
