@@ -454,13 +454,15 @@ def get_regie_board_from_api(regie_name: str) -> dict:
     Récupère les infos d'une régie depuis l'API Monday.com.
     Cherche dans le dossier "Régies" du workspace.
     
-    Ex: regie_name = "euro" → cherche "Régie euro", "Régie Euro V2", etc.
+    Ex: regie_name = "euroenergy" → cherche "Régie Euroenergy", etc.
     """
     headers = {
         "Authorization": apiKey,
         "Content-Type": "application/json",
         "API-Version": "2023-07"
     }
+    
+    logger.info(f"   🔎 Recherche API pour régie: '{regie_name}'")
     
     # 1. Récupérer l'ID du dossier "Régies"
     query_folders = """
@@ -480,47 +482,62 @@ def get_regie_board_from_api(regie_name: str) -> dict:
     result = response.json()
     
     folders = result.get("data", {}).get("folders", [])
+    logger.info(f"   📁 Dossiers trouvés: {[f['name'] for f in folders]}")
+    
     folder_id = None
     for folder in folders:
-        if folder["name"].lower() == "régies":
+        if "régie" in folder["name"].lower() or "regie" in folder["name"].lower():
             folder_id = int(folder["id"])
+            logger.info(f"   📁 Dossier Régies trouvé: ID {folder_id}")
             break
     
     if not folder_id:
         logger.error("Dossier 'Régies' non trouvé dans le workspace")
         return None
     
-    # 2. Récupérer les tableaux du dossier
-    query_boards = """
-    query ($folder_id: [ID!]) {
-        boards (folder_ids: $folder_id, limit: 100) {
-            id
-            name
+    # 2. Récupérer TOUS les tableaux du dossier (avec pagination)
+    all_boards = []
+    page = 1
+    while True:
+        query_boards = """
+        query ($folder_id: [ID!], $page: Int!) {
+            boards (folder_ids: $folder_id, limit: 50, page: $page) {
+                id
+                name
+            }
         }
-    }
-    """
+        """
+        
+        response = requests.post(
+            MONDAY_API_URL,
+            headers=headers,
+            json={"query": query_boards, "variables": {"folder_id": [folder_id], "page": page}}
+        )
+        result = response.json()
+        
+        boards = result.get("data", {}).get("boards", [])
+        if not boards:
+            break
+        
+        all_boards.extend(boards)
+        page += 1
+        
+        if page > 10:  # Sécurité max 500 boards
+            break
     
-    response = requests.post(
-        MONDAY_API_URL,
-        headers=headers,
-        json={"query": query_boards, "variables": {"folder_id": [folder_id]}}
-    )
-    result = response.json()
-    
-    boards = result.get("data", {}).get("boards", [])
+    logger.info(f"   📋 {len(all_boards)} boards trouvés dans le dossier Régies")
     
     # 3. Chercher le tableau correspondant au nom de la régie
-    # Ex: "euro" → cherche "Régie euro", "Régie Euro V2", "REGIE EURO", etc.
     normalized_name = normalize_regie_name(regie_name)
     target_board = None
     
-    for board in boards:
+    for board in all_boards:
         board_name = board["name"]
         board_name_lower = board_name.lower()
         
-        # Vérifier si le nom du board contient "régie" + le nom recherché
+        # Vérifier si le nom du board contient "régie"
         if "régie" in board_name_lower or "regie" in board_name_lower:
-            # Extraire le nom après "Régie " ou "REGIE "
+            # Extraire le nom après "Régie "
             extracted = re.sub(r'^r[ée]gie\s+', '', board_name_lower, flags=re.IGNORECASE)
             # Enlever "V2", "V3", etc.
             extracted = re.sub(r'\s*v\d+\s*$', '', extracted, flags=re.IGNORECASE).strip()
@@ -531,7 +548,8 @@ def get_regie_board_from_api(regie_name: str) -> dict:
                 break
     
     if not target_board:
-        logger.error(f"Aucun tableau trouvé pour la régie '{regie_name}'")
+        logger.error(f"   ❌ Aucun tableau trouvé pour la régie '{regie_name}'")
+        logger.error(f"   📋 Boards disponibles: {[b['name'] for b in all_boards[:20]]}...")
         return None
     
     board_id = int(target_board["id"])
