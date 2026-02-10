@@ -1,0 +1,146 @@
+{
+  "referencia": "002404300NG87G0001WR",
+  "type_batiment": "Maison individuelle",
+  "province": "32",
+  "municipalite": "21",
+  "adresse": "LG LAGOA (A) 61, 32824 CARTELLE (OURENSE)",
+  "annee_construction": 2010,
+  "nombre_etages": 1,
+  "hauteur_etage": 3.0,
+  "hauteur_max_gml": 3.0,
+  "perimetre": 64.1,
+  "coordonnees": {
+    "utm": {
+      "zone": 29,
+      "x": 583066,
+      "y": 4677338,
+      "unite": "m",
+      "systeme": "ETRS89 / UTM zone 29N (EPSG:25829)"
+    },
+    "wgs84": {
+      "longitude": -7.993238,
+      "latitude": 42.243796
+    }
+  },
+  "photo_facade": {
+    "url": "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfLibres/OVCFotoFachada.svc/RecuperarFotoFachadaGet?ReferenciaCatastral=002404300NG87G",
+    "fichier_local": "C:\\Users\\HP\\Desktop\\Python\\ESPAGNE\\Auto-link -regie-install\\cadastre\\resultats\\002404300NG87G0001WR\\photo_facade.jpg"
+  },
+  "carte_localisation": {
+    "fichier_local": "C:\\Users\\HP\\Desktop\\Python\\ESPAGNE\\Auto-link -regie-install\\cadastre\\resultats\\002404300NG87G0001WR\\carte_localisation.png"
+  },
+  "parties_batiment_gml": [
+    {
+      "nom": "Part 1",
+      "hauteur_m": 0.0,
+      "style": "WFS",
+      "nb_etages_dessus": 0,
+      "nb_etages_sous_sol": 0,
+      "hauteur_sous_sol_m": 0.0,
+      "surface_au_sol_m2": 8.4
+    },
+    {
+      "nom": "Part 2",
+      "hauteur_m": 3.0,
+      "style": "WFS",
+      "nb_etages_dessus": 1,
+      "nb_etages_sous_sol": 1,
+      "hauteur_sous_sol_m": 3.0,
+      "surface_au_sol_m2": 114.0
+    },
+    {
+      "nom": "Part 3",
+      "hauteur_m": 3.0,
+      "style": "WFS",
+      "nb_etages_dessus": 1,
+      "nb_etages_sous_sol": 0,
+      "hauteur_sous_sol_m": 0.0,
+      "surface_au_sol_m2": 17.9
+    },
+    {
+      "nom": "Part 4",
+      "hauteur_m": 3.0,
+      "style": "WFS",
+      "nb_etages_dessus": 1,
+      "nb_etages_sous_sol": 0,
+      "hauteur_sous_sol_m": 0.0,
+      "surface_au_sol_m2": 20.8
+    }
+  ],
+  "surfaces": {
+    "habitable_vivienda": 114,
+    "construite_totale": 247
+  },
+  "position_combles": {
+    "est_dernier_etage": true,
+    "etage_combles": null,
+    "alerte": null
+  },
+  "batiments_voisins": 0,
+  "inmuebles": [
+    {
+      "referencia_20": "002404300NG87G0001WR",
+      "construcciones": [
+        {
+          "uso": "ALMACEN",
+          "superficie_m2": 114,
+          "planta": "-1",
+          "puerta": "01",
+          "escalera": "1",
+          "referencia_20": "002404300NG87G0001WR"
+        },
+        {
+          "uso": "VIVIENDA",
+          "superficie_m2": 114,
+          "planta": "00",
+          "puerta": "01",
+          "escalera": "1",
+          "referencia_20": "002404300NG87G0001WR"
+        },
+        {
+          "uso": "SOPORT. 50%",
+          "superficie_m2": 10,
+          "planta": "00",
+          "puerta": "02",
+          "escalera": "1",
+          "referencia_20": "002404300NG87G0001WR"
+        },
+        {
+          "uso": "SOPORT. 50%",
+          "superficie_m2": 9,
+          "planta": "00",
+          "puerta": "03",
+          "escalera": "1",
+          "referencia_20": "002404300NG87G0001WR"
+        }
+      ]
+    }
+  ],
+  "enveloppe_thermique": {
+    "murs_exterieurs": 134.5,
+    "murs_exterieurs_nord": 30.7,
+    "murs_exterieurs_sud": 30.8,
+    "murs_exterieurs_est": 36.6,
+    "murs_exterieurs_ouest": 36.4,
+    "murs_mitoyens_lnc": 13.1,
+    "murs_mitoyens_chauffes": 0.0,
+    "plancher_terre_plein": 0.0,
+    "plancher_sur_lnc": 114,
+    "plancher_sur_local_chauffe": 0.0,
+    "plafond_sous_local_chauffe": 0.0,
+    "toiture": 114,
+    "huecos_nord": 4.7,
+    "huecos_sud": 8.8,
+    "huecos_est": 8.1,
+    "huecos_ouest": 8.0,
+    "huecos_total": 29.6,
+    "tipo_vidrio": "Doble bajo emisivo",
+    "tipo_marco": "PVC",
+    "ratio_huecos_murs": 0.22
+  },
+  "fxcc": {
+    "disponible": true,
+    "del_code": "32",
+    "mun_code": "21"
+  }
+}
