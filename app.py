@@ -967,7 +967,6 @@ logger = logging.getLogger("cex_app")
 # APP FASTAPI
 # ============================================================================
 
-app = FastAPI(title="CEX Cadastre API", version="1.0.0")
 
 
 # ============================================================================
@@ -1070,73 +1069,97 @@ def poster_commentaire_monday(item_id: int, body: str) -> Optional[str]:
         return None
 
 
+def _ligne(label: str, valeur: str, indent: bool = False) -> str:
+    """Génère une ligne de tableau HTML label/valeur."""
+    prefix = "&nbsp;&nbsp;- " if indent else ""
+    return f'<tr><td>{prefix}{label}</td><td style="text-align:right">{valeur}</td></tr>'
+
+
 def formater_commentaire_monday(r: ResultatAnalyse) -> str:
     """
     Formate les résultats de l'analyse cadastrale en HTML pour Monday.com.
-    Tableaux structurés : identification, surfaces, détail par unité, enveloppe, huecos, photo.
+    Style : tableaux bordés avec sections titrées, orientations indentées.
     """
     env = r.enveloppe
     type_str = r.type_batiment.value if hasattr(r.type_batiment, 'value') else r.type_batiment
+    T = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;margin-bottom:12px">'
 
-    html = f'<h2>Analyse cadastrale : {r.referencia}</h2>'
+    html = ''
 
-    # --- Identification ---
-    html += '<h3>Identification</h3>'
-    html += '<table border="1" cellpadding="6" cellspacing="0"><tbody>'
-    html += f'<tr><td><b>Type</b></td><td>{type_str}</td></tr>'
+    # ── INFORMATIONS GÉNÉRALES ──
+    hauteur_txt = f'{r.hauteur_etage} m'
+    if r.hauteur_max_gml:
+        hauteur_txt += f' (max GML: {r.hauteur_max_gml}m)'
+
+    html += T
+    html += '<tr><td colspan="2" style="background:#e0e0e0"><b>INFORMATIONS GÉNÉRALES</b></td></tr>'
+    html += _ligne('Référence cadastrale', r.referencia)
+    html += _ligne('Type de bâtiment', type_str)
     if r.adresse:
-        html += f'<tr><td><b>Adresse</b></td><td>{r.adresse}</td></tr>'
+        html += _ligne('Adresse', r.adresse)
     if r.annee_construction:
-        html += f'<tr><td><b>Annee</b></td><td>{r.annee_construction}</td></tr>'
-    html += f'<tr><td><b>Etages</b></td><td>{r.nombre_etages}</td></tr>'
-    html += f'<tr><td><b>Hauteur etage</b></td><td>{r.hauteur_etage} m</td></tr>'
+        html += _ligne('Année de construction', str(r.annee_construction))
+    html += _ligne('Nombre d\'étages', str(r.nombre_etages))
+    html += _ligne('Hauteur d\'étage', hauteur_txt)
     if r.utm_x and r.utm_y:
-        html += f'<tr><td><b>UTM zone {r.utm_zone}</b></td><td>X={r.utm_x:.0f}  Y={r.utm_y:.0f}</td></tr>'
+        html += _ligne('UTM', f'{r.utm_zone} X : {r.utm_x:.0f} m, Y : {r.utm_y:.0f} m')
     if r.coord_wgs84_lat and r.coord_wgs84_lon:
-        html += f'<tr><td><b>WGS84</b></td><td>{r.coord_wgs84_lat:.6f}, {r.coord_wgs84_lon:.6f}</td></tr>'
-    html += '</tbody></table>'
+        html += _ligne('WGS84', f'Lon: {r.coord_wgs84_lon:.6f}, Lat: {r.coord_wgs84_lat:.6f}')
+    html += '</table>'
 
-    # --- Surfaces ---
-    html += '<h3>Surfaces</h3>'
-    html += '<table border="1" cellpadding="6" cellspacing="0"><tbody>'
-    html += f'<tr><td><b>Surface habitable (vivienda)</b></td><td>{r.surface_utile} m²</td></tr>'
-    html += f'<tr><td><b>Surface construite totale</b></td><td>{r.surface_totale} m²</td></tr>'
-    html += '</tbody></table>'
+    # ── SURFACES ──
+    html += T
+    html += '<tr><td colspan="2" style="background:#e0e0e0"><b>SURFACES</b></td></tr>'
+    html += _ligne('Surface habitable (VIVIENDA)', f'{r.surface_utile} m²')
+    html += _ligne('Surface construite totale', f'{r.surface_totale} m²')
+    html += '</table>'
 
-    # --- Détail par unité ---
+    # ── DÉTAIL PAR UNITÉ ──
     if r.inmuebles:
-        html += '<h3>Detail par unite</h3>'
-        html += '<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th style="background:#e0e0e0">Ref</th><th style="background:#e0e0e0">Usage</th><th style="background:#e0e0e0">Surface</th><th style="background:#e0e0e0">Etage</th></tr></thead><tbody>'
-        for inm in r.inmuebles:
-            for i, c in enumerate(inm.construcciones):
-                ref_cell = inm.referencia_20 if i == 0 else ''
-                html += f'<tr><td>{ref_cell}</td><td>{c.uso}</td><td>{c.superficie_m2} m²</td><td>{c.planta}</td></tr>'
-        html += '</tbody></table>'
+        html += T
+        html += '<tr><td colspan="2" style="background:#e0e0e0"><b>DÉTAIL PAR UNITÉ</b></td></tr>'
+        for idx, inm in enumerate(r.inmuebles, 1):
+            html += f'<tr><td colspan="2"><b>[{idx}] {inm.referencia_20}</b></td></tr>'
+            for c in inm.construcciones:
+                est_viv = 'VIVIENDA' in c.uso.upper()
+                icone = '&#10003;' if est_viv else '&#10007;'
+                planta = f' (Planta {c.planta})' if c.planta != '00' else ''
+                html += f'<tr><td>&nbsp;&nbsp;[{icone}] {c.uso}{planta}</td><td style="text-align:right">{c.superficie_m2} m²</td></tr>'
+        html += '</table>'
 
-    # --- Enveloppe thermique ---
-    html += '<h3>Enveloppe thermique</h3>'
-    html += '<table border="1" cellpadding="6" cellspacing="0"><thead><tr><th style="background:#e0e0e0">Element</th><th style="background:#e0e0e0">Total</th><th style="background:#e0e0e0">Nord</th><th style="background:#e0e0e0">Sud</th><th style="background:#e0e0e0">Est</th><th style="background:#e0e0e0">Ouest</th></tr></thead><tbody>'
-    html += f'<tr><td><b>Murs exterieurs</b></td><td>{env.murs_exterieurs:.1f}</td><td>{env.murs_exterieurs_nord:.1f}</td><td>{env.murs_exterieurs_sud:.1f}</td><td>{env.murs_exterieurs_est:.1f}</td><td>{env.murs_exterieurs_ouest:.1f}</td></tr>'
-    html += f'<tr><td><b>Huecos (fenetres)</b></td><td>{env.huecos_total:.1f}</td><td>{env.huecos_nord:.1f}</td><td>{env.huecos_sud:.1f}</td><td>{env.huecos_est:.1f}</td><td>{env.huecos_ouest:.1f}</td></tr>'
-    html += '</tbody></table>'
+    # ── ENVELOPPE THERMIQUE CE3X ──
+    html += T
+    html += '<tr><td colspan="2" style="background:#e0e0e0"><b>ENVELOPPE THERMIQUE CE3X</b></td></tr>'
+    html += _ligne('Murs extérieurs', f'{env.murs_exterieurs:.1f} m²')
+    html += _ligne('Nord', f'{env.murs_exterieurs_nord:.1f} m²', indent=True)
+    html += _ligne('Sud', f'{env.murs_exterieurs_sud:.1f} m²', indent=True)
+    html += _ligne('Est', f'{env.murs_exterieurs_est:.1f} m²', indent=True)
+    html += _ligne('Ouest', f'{env.murs_exterieurs_ouest:.1f} m²', indent=True)
+    html += _ligne('Murs mitoyens avec LNC', f'{env.murs_mitoyens_lnc:.1f} m²')
+    html += _ligne('Murs mitoyens chauffés', f'{env.murs_mitoyens_chauffes:.1f} m² (adiabatique)')
+    html += _ligne('Plancher sur terre-plein', f'{env.plancher_terre_plein:.0f} m²')
+    html += _ligne('Plancher sur LNC', f'{env.plancher_sur_lnc:.0f} m²')
+    html += _ligne('Plancher sur local chauffé', f'{env.plancher_sur_local_chauffe:.0f} m² (adiabatique)')
+    html += _ligne('Plafond sous local chauffé', f'{env.plafond_sous_local_chauffe:.0f} m² (adiabatique)')
+    html += _ligne('Toiture', f'{env.toiture:.0f} m²')
+    # Séparateur visuel
+    html += '<tr><td colspan="2">&nbsp;</td></tr>'
+    html += _ligne('Huecos (fenêtres)', f'{env.huecos_total:.1f} m² (ratio {env.ratio_huecos_murs:.0%})')
+    html += _ligne('Nord', f'{env.huecos_nord:.1f} m²', indent=True)
+    html += _ligne('Sud', f'{env.huecos_sud:.1f} m²', indent=True)
+    html += _ligne('Est', f'{env.huecos_est:.1f} m²', indent=True)
+    html += _ligne('Ouest', f'{env.huecos_ouest:.1f} m²', indent=True)
+    html += _ligne('Vitrage estimé', env.tipo_vidrio)
+    html += _ligne('Menuiserie estimée', env.tipo_marco)
+    html += '</table>'
 
-    html += '<table border="1" cellpadding="6" cellspacing="0"><tbody>'
-    html += f'<tr><td><b>Murs mitoyens LNC</b></td><td>{env.murs_mitoyens_lnc:.1f} m²</td></tr>'
-    html += f'<tr><td><b>Murs mitoyens chauffes</b></td><td>{env.murs_mitoyens_chauffes:.1f} m² (adiabatique)</td></tr>'
-    html += f'<tr><td><b>Plancher terre-plein</b></td><td>{env.plancher_terre_plein:.0f} m²</td></tr>'
-    html += f'<tr><td><b>Plancher sur LNC</b></td><td>{env.plancher_sur_lnc:.0f} m²</td></tr>'
-    html += f'<tr><td><b>Plancher local chauffe</b></td><td>{env.plancher_sur_local_chauffe:.0f} m² (adiabatique)</td></tr>'
-    html += f'<tr><td><b>Toiture</b></td><td>{env.toiture:.0f} m²</td></tr>'
-    html += f'<tr><td><b>Vitrage</b></td><td>{env.tipo_vidrio}</td></tr>'
-    html += f'<tr><td><b>Menuiserie</b></td><td>{env.tipo_marco}</td></tr>'
-    html += f'<tr><td><b>Ratio huecos/murs</b></td><td>{env.ratio_huecos_murs:.0%}</td></tr>'
-    html += '</tbody></table>'
-
-    # --- Photos ---
+    # ── PHOTOS ──
     if r.url_photo_facade or (r.utm_x and r.utm_y):
-        html += '<h3>Photos</h3>'
+        html += T
+        html += '<tr><td colspan="2" style="background:#e0e0e0"><b>PHOTOS</b></td></tr>'
+        images = ''
         if r.url_photo_facade:
-            html += f'<img src="{r.url_photo_facade}" alt="Facade" width="400">'
+            images += f'<img src="{r.url_photo_facade}" alt="Facade" width="400"><br>'
         if r.utm_x and r.utm_y:
             marge = 80
             bbox = f"{r.utm_x - marge},{r.utm_y - marge},{r.utm_x + marge},{r.utm_y + marge}"
@@ -1146,7 +1169,9 @@ def formater_commentaire_monday(r: ResultatAnalyse) -> str:
                 f"?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=Catastro"
                 f"&SRS=EPSG:{epsg}&BBOX={bbox}&WIDTH=500&HEIGHT=500&FORMAT=image/png"
             )
-            html += f'<br><img src="{url_carte}" alt="Localisation" width="400">'
+            images += f'<img src="{url_carte}" alt="Localisation" width="400">'
+        html += f'<tr><td colspan="2" style="text-align:center">{images}</td></tr>'
+        html += '</table>'
 
     return html
 
@@ -1229,6 +1254,14 @@ async def analyse_cadastre(request: Request):
     # --- Post commentaire Monday ---
     commentaire = formater_commentaire_monday(resultat)
     poster_commentaire_monday(item_id, commentaire)
+
+    # --- Nettoyage du dossier résultats ---
+    try:
+        if dossier.exists():
+            shutil.rmtree(dossier)
+            logger.info(f"Dossier supprimé: {dossier}")
+    except Exception as e:
+        logger.warning(f"Erreur suppression dossier {dossier}: {e}")
 
     return JSONResponse({
         "status": "ok",
