@@ -908,3 +908,316 @@ async def install_to_regie(request: Dict[Any, Any]):
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
+
+
+
+
+# ========================================================================================================================================================
+# CADASTRE CE3X - API FASTAPI
+# ========================================================================================================================================================
+
+
+
+
+
+# -*- coding: utf-8 -*-
+"""
+API FastAPI pour l'intégration Monday.com ↔ Analyse Cadastrale CE3X.
+
+Reçoit un webhook Monday.com, récupère le numéro cadastral,
+lance l'analyse et poste un commentaire avec les résultats.
+
+Lancement : uvicorn app:app --reload --port 8000
+"""
+
+import logging
+import re
+import sys
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import requests
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+# Ajouter le module cadastre au path
+sys.path.insert(0, str(Path(__file__).parent / "cadastre"))
+from analyse_ce3x import AnalyseurCE3X, ResultatAnalyse, sauvegarder_json
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+MONDAY_API_URL = "https://api.monday.com/v2"
+apiKey = "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjUyNTUxMDkxOCwiYWFpIjoxMSwidWlkIjo3NjM3MTkxNiwiaWFkIjoiMjAyNS0wNi0xMlQxMjowMjowNi4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MTQ5ODgzMDQsInJnbiI6InVzZTEifQ.g8M5fmXYZ3eNUQWiPpnKmPHf1K0wrwdqi2HJFFl1P0Q"
+COLUMN_REF_CADASTRALE = "chiffres_mkmf1x55"
+DOSSIER_RESULTATS = "cadastre/resultats"
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("cex_app")
+
+
+# ============================================================================
+# FONCTIONS MONDAY.COM
+# ============================================================================
+
+def get_cadastral_value_for_item(
+    api_token: str, item_id: int, column_id: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Récupère la valeur brute (JSON string) et le texte d'une colonne
+    pour un item donné.
+    """
+    query = """
+    query ($item_id: [ID!], $column_id: [String!]) {
+      items (ids: $item_id) {
+        id
+        column_values (ids: $column_id) {
+          id
+          text
+          value
+          type
+        }
+      }
+    }
+    """
+    variables = {"item_id": [item_id], "column_id": [column_id]}
+    headers = {"Authorization": api_token, "Content-Type": "application/json"}
+
+    resp = requests.post(
+        MONDAY_API_URL,
+        json={"query": query, "variables": variables},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    if "errors" in data:
+        raise RuntimeError(data["errors"])
+
+    items = data["data"]["items"]
+    if not items:
+        return None
+
+    cols = items[0]["column_values"]
+    if not cols:
+        return None
+
+    col = cols[0]
+    return {
+        "id": col["id"],
+        "type": col["type"],
+        "text": col["text"],
+        "value": col["value"],
+    }
+
+
+def poster_commentaire_monday(item_id: int, body: str) -> Optional[str]:
+    """
+    Poste un commentaire (update) sur un item Monday.com.
+    Retourne l'ID de l'update créé, ou None en cas d'erreur.
+    """
+    # Échapper les caractères spéciaux pour GraphQL
+    body_escaped = body.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+    query = f"""
+    mutation {{
+      create_update(
+        item_id: {item_id}
+        body: "{body_escaped}"
+      ) {{
+        id
+      }}
+    }}
+    """
+    headers = {"Authorization": apiKey, "Content-Type": "application/json"}
+
+    try:
+        resp = requests.post(
+            MONDAY_API_URL,
+            json={"query": query},
+            headers=headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if "errors" in data:
+            logger.error(f"Erreur GraphQL Monday: {data['errors']}")
+            return None
+
+        update_id = data.get("data", {}).get("create_update", {}).get("id")
+        if update_id:
+            logger.info(f"Commentaire posté sur item {item_id}: update_id={update_id}")
+        return update_id
+
+    except Exception as e:
+        logger.error(f"Erreur post commentaire Monday item {item_id}: {e}")
+        return None
+
+
+def formater_commentaire_monday(r: ResultatAnalyse) -> str:
+    """
+    Formate les résultats de l'analyse cadastrale en commentaire Monday.com.
+    Résumé complet : identification + surfaces + détail par unité + enveloppe + huecos.
+    """
+    env = r.enveloppe
+
+    lignes = [
+        f"Analyse cadastrale : {r.referencia}",
+        "",
+        "IDENTIFICATION",
+        f"  Type : {r.type_batiment.value if hasattr(r.type_batiment, 'value') else r.type_batiment}",
+    ]
+
+    if r.adresse:
+        lignes.append(f"  Adresse : {r.adresse}")
+    if r.annee_construction:
+        lignes.append(f"  Annee : {r.annee_construction}")
+
+    lignes.append(f"  Etages : {r.nombre_etages}")
+    lignes.append(f"  Hauteur etage : {r.hauteur_etage} m")
+
+    # --- Coordonnées UTM + WGS84 ---
+    if r.utm_x and r.utm_y:
+        lignes.append(f"  UTM zone {r.utm_zone} : X={r.utm_x:.0f}  Y={r.utm_y:.0f}")
+    if r.coord_wgs84_lat and r.coord_wgs84_lon:
+        lignes.append(f"  WGS84 : {r.coord_wgs84_lat:.6f}, {r.coord_wgs84_lon:.6f}")
+
+    # --- Surfaces ---
+    lignes += [
+        "",
+        "SURFACES",
+        f"  Surface habitable (vivienda) : {r.surface_utile} m2",
+        f"  Surface construite totale : {r.surface_totale} m2",
+    ]
+
+    # --- Détail par unité ---
+    if r.inmuebles:
+        lignes += ["", "DETAIL PAR UNITE"]
+        for inm in r.inmuebles:
+            lignes.append(f"  {inm.referencia_20}")
+            for c in inm.construcciones:
+                etage = f"Pl.{c.planta}"
+                lignes.append(f"    {c.uso:20s} {c.superficie_m2:>4d} m2  ({etage})")
+
+    lignes += [
+        "",
+        "ENVELOPPE THERMIQUE",
+        f"  Murs exterieurs : {env.murs_exterieurs:.1f} m2",
+        f"    Nord : {env.murs_exterieurs_nord:.1f} m2",
+        f"    Sud  : {env.murs_exterieurs_sud:.1f} m2",
+        f"    Est  : {env.murs_exterieurs_est:.1f} m2",
+        f"    Ouest: {env.murs_exterieurs_ouest:.1f} m2",
+        f"  Murs mitoyens LNC : {env.murs_mitoyens_lnc:.1f} m2",
+        f"  Murs mitoyens chauffes : {env.murs_mitoyens_chauffes:.1f} m2 (adiabatique)",
+        f"  Plancher terre-plein : {env.plancher_terre_plein:.0f} m2",
+        f"  Plancher sur LNC : {env.plancher_sur_lnc:.0f} m2",
+        f"  Plancher local chauffe : {env.plancher_sur_local_chauffe:.0f} m2 (adiabatique)",
+        f"  Toiture : {env.toiture:.0f} m2",
+        "",
+        "HUECOS (FENETRES)",
+        f"  Total : {env.huecos_total:.1f} m2 (ratio {env.ratio_huecos_murs:.0%})",
+        f"    Nord : {env.huecos_nord:.1f} m2",
+        f"    Sud  : {env.huecos_sud:.1f} m2",
+        f"    Est  : {env.huecos_est:.1f} m2",
+        f"    Ouest: {env.huecos_ouest:.1f} m2",
+        f"  Vitrage : {env.tipo_vidrio}",
+        f"  Menuiserie : {env.tipo_marco}",
+    ]
+
+    return "\n".join(lignes)
+
+
+# ============================================================================
+# ENDPOINT WEBHOOK
+# ============================================================================
+
+RE_REF_CADASTRALE = re.compile(r"^[A-Za-z0-9]{14}([A-Za-z0-9]{6})?$")
+
+
+@app.post("/analyse_cadastre")
+async def analyse_cadastre(request: Request):
+    """
+    Endpoint webhook Monday.com :
+    1. Challenge handling (vérification webhook)
+    2. Récupère le numéro cadastral depuis la colonne Monday
+    3. Lance l'analyse cadastrale
+    4. Poste le résumé en commentaire sur l'item
+    """
+    data = await request.json()
+
+    # --- Challenge Monday.com ---
+    if "challenge" in data:
+        return JSONResponse({"challenge": data["challenge"]})
+
+    # --- Extraction de l'item ID ---
+    event = data.get("event", data)
+    item_id = event.get("pulseId") or event.get("itemId")
+
+    if not item_id:
+        logger.warning(f"Webhook sans pulseId/itemId: {data}")
+        return JSONResponse({"error": "pulseId manquant"}, status_code=400)
+
+    item_id = int(item_id)
+    logger.info(f"Webhook recu pour item {item_id}")
+
+    # --- Récupération de la référence cadastrale ---
+    try:
+        col_data = get_cadastral_value_for_item(
+            apiKey, item_id, COLUMN_REF_CADASTRALE
+        )
+    except Exception as e:
+        logger.error(f"Erreur API Monday item {item_id}: {e}")
+        return JSONResponse({"error": f"Erreur API Monday: {e}"}, status_code=502)
+
+    if not col_data or not col_data.get("text"):
+        logger.warning(f"Colonne {COLUMN_REF_CADASTRALE} vide pour item {item_id}")
+        return JSONResponse({"status": "skip", "reason": "ref cadastrale vide"})
+
+    ref_cadastrale = col_data["text"].strip().upper()
+    logger.info(f"Reference cadastrale: {ref_cadastrale}")
+
+    # --- Validation ---
+    if not RE_REF_CADASTRALE.match(ref_cadastrale):
+        msg = f"Reference cadastrale invalide: {ref_cadastrale}"
+        logger.warning(msg)
+        poster_commentaire_monday(item_id, f"Erreur : {msg}")
+        return JSONResponse({"error": msg}, status_code=400)
+
+    # --- Analyse cadastrale ---
+    try:
+        analyseur = AnalyseurCE3X(ref_cadastrale)
+        resultat = analyseur.analyser()
+    except Exception as e:
+        msg = f"Erreur analyse cadastrale {ref_cadastrale}: {e}"
+        logger.error(msg)
+        poster_commentaire_monday(item_id, f"Erreur analyse : {e}")
+        return JSONResponse({"error": msg}, status_code=500)
+
+    # --- Sauvegarde JSON ---
+    try:
+        dossier = Path(DOSSIER_RESULTATS)
+        dossier = dossier / resultat.referencia
+        dossier.mkdir(parents=True, exist_ok=True)
+        sauvegarder_json(resultat, str(dossier / "resultat_ce3x.json"))
+    except Exception as e:
+        logger.warning(f"Erreur sauvegarde JSON: {e}")
+
+    # --- Post commentaire Monday ---
+    commentaire = formater_commentaire_monday(resultat)
+    poster_commentaire_monday(item_id, commentaire)
+
+    return JSONResponse({
+        "status": "ok",
+        "referencia": ref_cadastrale,
+        "surface_utile": resultat.surface_utile,
+    })
