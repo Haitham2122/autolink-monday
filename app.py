@@ -6,7 +6,7 @@ import json
 import logging
 import requests
 import re
-
+import shutil
 # Import des fonctions Monday.com
 from monday_api import (
     get_column_value_for_item,

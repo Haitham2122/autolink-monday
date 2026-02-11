@@ -1,0 +1,71 @@
+{
+  "referencia": "002404300NG87G",
+  "type_batiment": "Type inconnu",
+  "province": null,
+  "municipalite": null,
+  "adresse": null,
+  "annee_construction": null,
+  "nombre_etages": 1,
+  "hauteur_etage": 2.7,
+  "hauteur_max_gml": null,
+  "perimetre": 0.0,
+  "coordonnees": {
+    "utm": {
+      "zone": 30,
+      "x": null,
+      "y": null,
+      "unite": "m",
+      "systeme": "ETRS89 / UTM zone 30N (EPSG:25830)"
+    },
+    "wgs84": {
+      "longitude": null,
+      "latitude": null
+    }
+  },
+  "photo_facade": {
+    "url": null,
+    "fichier_local": null
+  },
+  "carte_localisation": {
+    "fichier_local": null
+  },
+  "parties_batiment_gml": [],
+  "surfaces": {
+    "habitable_vivienda": 0,
+    "construite_totale": 0
+  },
+  "position_combles": {
+    "est_dernier_etage": false,
+    "etage_combles": null,
+    "alerte": null
+  },
+  "batiments_voisins": 0,
+  "inmuebles": [],
+  "enveloppe_thermique": {
+    "murs_exterieurs": 0.0,
+    "murs_exterieurs_nord": 0.0,
+    "murs_exterieurs_sud": 0.0,
+    "murs_exterieurs_est": 0.0,
+    "murs_exterieurs_ouest": 0.0,
+    "murs_mitoyens_lnc": 0.0,
+    "murs_mitoyens_chauffes": 0.0,
+    "plancher_terre_plein": 0.0,
+    "plancher_sur_lnc": 0.0,
+    "plancher_sur_local_chauffe": 0.0,
+    "plafond_sous_local_chauffe": 0.0,
+    "toiture": 0.0,
+    "huecos_nord": 0.0,
+    "huecos_sud": 0.0,
+    "huecos_est": 0.0,
+    "huecos_ouest": 0.0,
+    "huecos_total": 0.0,
+    "tipo_vidrio": "",
+    "tipo_marco": "",
+    "ratio_huecos_murs": 0.0
+  },
+  "fxcc": {
+    "disponible": false,
+    "del_code": null,
+    "mun_code": null
+  }
+}
