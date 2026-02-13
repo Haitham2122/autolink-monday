@@ -36,7 +36,7 @@
   { "principal": { "id": "file_mkntx4fq", "title": "CEE initial signé" }, "admin": { "id": "file_mkvf4kxk", "title": "CEE initial signé" } },
   { "principal": { "id": "file_mks32qy", "title": "CEE final signé" }, "admin": { "id": "file_mkvf24ev", "title": "CEE final signé" } },
   { "principal": { "id": "fichier_mkmftkns", "title": "CEE V3 enregistré" }, "admin": { "id": "file_mkvfh15n", "title": "CEE V3 enregistré" } },
-
+  { "principal": { "id": "file_mm02hzhj", "title": "INFORME FOTOGRAFICO" }, "admin": { "id": "file_mkqz87mv", "title": "INFORME FOTOGRAFICO" } },
   { "principal": { "id": "file_mkvfm242", "title": "Justif paiement" }, "admin": { "id": "file_mkvfzwf0", "title": "Justif paiement" } },
   { "principal": { "id": "file_mkvfqpzv", "title": "Justif enregistrement" }, "admin": { "id": "file_mkvf411b", "title": "Justif enregistrement" } }
 ]
