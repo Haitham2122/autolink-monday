@@ -58,6 +58,10 @@ with open('config_install_regie.json', 'r', encoding='utf-8') as f:
 with open('regies_cache.json', 'r', encoding='utf-8') as f:
     regies_cache = json.load(f)
 
+# Chargement de la configuration TagList
+with open('config_taglist.json', 'r', encoding='utf-8') as f:
+    config_taglist = json.load(f)
+
 # Extraction dynamique des IDs de colonnes du tableau principal depuis le mapping
 principal_column_ids = [mapping['principal']['id'] for mapping in column_mapping]
 logger.info(f"Colonnes à récupérer du tableau principal: {len(principal_column_ids)} colonnes")
@@ -74,7 +78,8 @@ async def root():
         "timestamp": datetime.utcnow().isoformat(),
         "endpoints": {
             "auto-link": "/auto-link (Principal → Admin)",
-            "install-to-regie": "/install-to-regie (Install → Régie)"
+            "install-to-regie": "/install-to-regie (Install → Régie)",
+            "generate-taglist": "/generate-taglist (Install → TagList JSON)"
         },
         "config": {
             "admin_board_id": config["admin_board_id"],
@@ -1268,3 +1273,196 @@ async def analyse_cadastre(request: Request):
         "referencia": ref_cadastrale,
         "surface_utile": resultat.surface_utile,
     })
+
+
+# ============================================================================
+# ENDPOINT: Generate TagList JSON
+# ============================================================================
+
+def extract_taglist_value(col_data: dict, col_type: str) -> str:
+    """Extrait la valeur d'une colonne Monday.com selon son type pour le TagList."""
+    if not col_data:
+        return ""
+
+    text = col_data.get('text', '') or ''
+    value_raw = col_data.get('value', '')
+
+    if col_type == "phone":
+        if value_raw:
+            try:
+                parsed = json.loads(value_raw) if isinstance(value_raw, str) else value_raw
+                return parsed.get('phone', '') or text
+            except (json.JSONDecodeError, AttributeError):
+                return text
+        return text
+
+    elif col_type == "email":
+        if value_raw:
+            try:
+                parsed = json.loads(value_raw) if isinstance(value_raw, str) else value_raw
+                return parsed.get('email', '') or text
+            except (json.JSONDecodeError, AttributeError):
+                return text
+        return text
+
+    elif col_type == "date":
+        if value_raw:
+            try:
+                parsed = json.loads(value_raw) if isinstance(value_raw, str) else value_raw
+                date_str = parsed.get('date', '')
+                if date_str:
+                    dt = datetime.strptime(date_str, "%Y-%m-%d")
+                    return dt.strftime("%d/%m/%Y")
+            except (json.JSONDecodeError, AttributeError, ValueError):
+                pass
+        return text
+
+    elif col_type == "status":
+        return text
+
+    else:
+        return text
+
+
+@app.post("/generate-taglist")
+async def generate_taglist(request: Dict[Any, Any]):
+    """
+    Endpoint webhook - Génération du JSON TagList
+
+    1. Reçoit le webhook avec l'ID de l'item Install
+    2. Récupère les colonnes configurées dans config_taglist.json
+    3. Construit le JSON TagList
+    4. Retourne le JSON (destination à définir)
+    """
+    try:
+        logger.info("=" * 80)
+        logger.info("Webhook Generate-TagList reçu")
+        logger.info(f"Payload: {json.dumps(request, indent=2)}")
+
+        # Gestion du challenge Monday.com
+        if 'challenge' in request:
+            logger.info(f"Challenge reçu: {request['challenge']}")
+            return {"challenge": request['challenge']}
+
+        # ÉTAPE 1: Extraire l'ID de l'item
+        event = request.get('event', {})
+        item_id = int(event.get('pulseId'))
+        logger.info(f"✓ ÉTAPE 1 - ID item Install: {item_id}")
+
+        # ÉTAPE 2: Récupérer les colonnes depuis Monday.com
+        logger.info("→ ÉTAPE 2 - Récupération des colonnes")
+
+        mapping = config_taglist['column_mapping']
+        column_ids = list(set(
+            m['column_id'] for m in mapping.values() if m['column_id'] != 'name'
+        ))
+        logger.info(f"  Colonnes à récupérer: {column_ids}")
+
+        item_data = get_all_column_values_for_item(apiKey, item_id, column_ids)
+
+        if not item_data or not item_data.get('columns'):
+            logger.error(f"  ✗ Item {item_id} non trouvé ou colonnes manquantes")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item {item_id} non trouvé ou colonnes manquantes"
+            )
+
+        logger.info(f"  ✓ Données récupérées - Item: {item_data['name']}")
+        for col_id, col_data in item_data['columns'].items():
+            logger.info(f"    - {col_id}: text='{col_data.get('text')}', type={col_data.get('type')}")
+
+        # ÉTAPE 3: Extraire les données structurées de la colonne location
+        logger.info("→ ÉTAPE 3 - Extraction des données location")
+
+        location_data = {}
+        location_col_id = mapping.get('adresse', {}).get('column_id', '')
+        lieu_col = item_data['columns'].get(location_col_id) if location_col_id else None
+        if lieu_col and lieu_col.get('value'):
+            try:
+                location_data = json.loads(lieu_col['value']) if isinstance(lieu_col['value'], str) else lieu_col['value']
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        ville = location_data.get('city', {}).get('long_name', '') if location_data else ''
+        pays = location_data.get('country', {}).get('long_name', '') if location_data else ''
+        lat = location_data.get('lat', '')
+        lng = location_data.get('lng', '')
+        geo_from_location = f"{lat},{lng}" if lat and lng else ''
+
+        logger.info(f"  ville (location): '{ville}'")
+        logger.info(f"  pays (location): '{pays}'")
+        logger.info(f"  geo (location): '{geo_from_location}'")
+
+        # ÉTAPE 4: Construire le TagList
+        logger.info("→ ÉTAPE 4 - Construction du TagList")
+
+        taglist = {}
+
+        for field_name, field_config in mapping.items():
+            col_id = field_config['column_id']
+            col_type = field_config['type']
+
+            if col_id == 'name':
+                taglist[field_name] = item_data.get('name', '') or ''
+            else:
+                col_data = item_data['columns'].get(col_id)
+                taglist[field_name] = extract_taglist_value(col_data, col_type)
+
+            logger.info(f"  {field_name}: '{taglist[field_name]}'")
+
+        # Remplir ville et pays depuis location
+        taglist['ville'] = ville
+        taglist['pays'] = pays
+        logger.info(f"  ville: '{ville}' (depuis location)")
+        logger.info(f"  pays: '{pays}' (depuis location)")
+
+        # geoPosition: priorité à la colonne dédiée, sinon depuis location
+        if not taglist.get('geoPosition'):
+            taglist['geoPosition'] = geo_from_location
+            logger.info(f"  geoPosition: '{geo_from_location}' (depuis location)")
+
+        # codePostal: fallback espace si vide
+        if not taglist.get('codePostal'):
+            taglist['codePostal'] = ' '
+            logger.info(f"  codePostal: ' ' (fallback)")
+
+        # Ajouter les valeurs par défaut pour les champs non encore remplis
+        defaults = config_taglist.get('defaults', {})
+        for field_name, default_value in defaults.items():
+            if field_name not in taglist:
+                # Remplacer __PULSE_ID__ par l'ID réel de l'item
+                if default_value == '__PULSE_ID__':
+                    default_value = str(item_id)
+                taglist[field_name] = default_value
+                logger.info(f"  {field_name}: '{default_value}' (défaut)")
+
+        logger.info("=" * 80)
+        logger.info(f"✓ TagList généré: {json.dumps({'TagList': taglist}, indent=2, ensure_ascii=False)}")
+
+        # ÉTAPE 5: Envoi vers l'API CAEX
+        caex_url = config_taglist.get('caex_api_url', 'https://api.caex.tech/api/prospects')
+        payload = {"TagList": json.dumps(taglist, ensure_ascii=False)}
+
+        logger.info(f"→ ÉTAPE 5 - Envoi vers {caex_url}")
+        caex_resp = requests.post(
+            caex_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=60
+        )
+
+        logger.info(f"  Status CAEX: {caex_resp.status_code}")
+        logger.info(f"  Réponse CAEX: {caex_resp.text[:500]}")
+
+        return JSONResponse({
+            "status": "ok",
+            "taglist": taglist,
+            "caex_status": caex_resp.status_code,
+            "caex_response": caex_resp.json() if caex_resp.headers.get('content-type', '').startswith('application/json') else caex_resp.text
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"✗ Erreur generate-taglist: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erreur génération TagList: {str(e)}")

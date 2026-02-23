@@ -1,0 +1,52 @@
+{
+  "board_id": 9145949863,
+  "column_mapping": {
+    "prenom": {
+      "column_id": "name",
+      "type": "name"
+    },
+    "adresse": {
+      "column_id": "lieu_mkmcfj2y",
+      "type": "location"
+    },
+    "codePostal": {
+      "column_id": "text_mkqzvncw",
+      "type": "text"
+    },
+    "startWork": {
+      "column_id": "date_mkqyrd9t",
+      "type": "date"
+    },
+    "endWork": {
+      "column_id": "date_mkqyrd9t",
+      "type": "date"
+    },
+    "tel": {
+      "column_id": "t_l_phone_mkmc3r2q",
+      "type": "phone"
+    },
+    "email": {
+      "column_id": "e_mail_mkmcdb1r",
+      "type": "email"
+    },
+    "cadastralReference": {
+      "column_id": "chiffres_mkmf1x55",
+      "type": "text"
+    },
+    "geoPosition": {
+      "column_id": "text_mm0psgqa",
+      "type": "text"
+    },
+    "EquipePose": {
+      "column_id": "color_mkqyge08",
+      "type": "status"
+    }
+  },
+  "caex_api_url": "https://api.caex.tech/api/prospects",
+  "defaults": {
+    "nom": " ",
+    "token": "__PULSE_ID__",
+    "sexe": "",
+    "installateurId": "cmlqg06rv03udpb0103pbpm50"
+  }
+}
