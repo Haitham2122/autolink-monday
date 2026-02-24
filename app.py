@@ -1426,17 +1426,16 @@ async def generate_taglist(request: Dict[Any, Any]):
             taglist['codePostal'] = ' '
             logger.info(f"  codePostal: ' ' (fallback)")
 
-        # Mapping EquipePose Monday → CAEX (si pas dans le mapping, on n'envoie pas)
-        equipe_mapping = {
-            "EQUIPE 16 - CATALIN": "DENIS - EQUIPE 16",
-            "EQUIPE 17 - OCTAVIA": "DENIS - EQUIPE 17",
-        }
+        # Mapping EquipePose Monday → CAEX (dynamique)
         equipe_value = taglist.get('EquipePose', '')
-        if equipe_value in equipe_mapping:
-            taglist['EquipePose'] = equipe_mapping[equipe_value]
+        equipe_match = re.search(r'\d+', equipe_value)
+        if equipe_match:
+            numero = equipe_match.group()
+            prefix = "PAVEL" if "PAVEL" in equipe_value.upper() else "DENIS"
+            taglist['EquipePose'] = f"{prefix} - EQUIPE {numero}"
             logger.info(f"  EquipePose mappé: '{equipe_value}' → '{taglist['EquipePose']}'")
         else:
-            logger.info(f"  EquipePose '{equipe_value}' non mappé → TagList non envoyé à CAEX")
+            logger.info(f"  EquipePose '{equipe_value}' sans numéro → TagList non envoyé à CAEX")
             return {"status": "skipped", "reason": f"EquipePose '{equipe_value}' non mappé", "taglist": taglist}
 
 
