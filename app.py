@@ -1426,6 +1426,20 @@ async def generate_taglist(request: Dict[Any, Any]):
             taglist['codePostal'] = ' '
             logger.info(f"  codePostal: ' ' (fallback)")
 
+        # Mapping EquipePose Monday → CAEX (si pas dans le mapping, on n'envoie pas)
+        equipe_mapping = {
+            "EQUIPE 16 - CATALIN": "DENIS - EQUIPE 16",
+            "EQUIPE 17 - OCTAVIA": "DENIS - EQUIPE 17",
+        }
+        equipe_value = taglist.get('EquipePose', '')
+        if equipe_value in equipe_mapping:
+            taglist['EquipePose'] = equipe_mapping[equipe_value]
+            logger.info(f"  EquipePose mappé: '{equipe_value}' → '{taglist['EquipePose']}'")
+        else:
+            logger.info(f"  EquipePose '{equipe_value}' non mappé → TagList non envoyé à CAEX")
+            return {"status": "skipped", "reason": f"EquipePose '{equipe_value}' non mappé", "taglist": taglist}
+
+
         # Ajouter les valeurs par défaut pour les champs non encore remplis
         defaults = config_taglist.get('defaults', {})
         for field_name, default_value in defaults.items():
