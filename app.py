@@ -1521,67 +1521,18 @@ async def upload_files(
     col_cee = "file_mkvfr2d7"          # CEE Final pdf
 
     try:
-        # ÉTAPE 1: Trouver l'item admin via install_id
-        logger.info(f"→ ÉTAPE 1 - Recherche item admin (ID_Install={install_id})")
-        query = """
-        query ($board_id: ID!, $column_id: String!, $value: String!) {
-          items_by_column_values (board_id: $board_id, column_id: $column_id, column_value: $value) {
-            id
-            name
-          }
-        }
-        """
-        resp = requests.post(
-            "https://api.monday.com/v2",
-            json={"query": query, "variables": {
-                "board_id": str(admin_board_id),
-                "column_id": link_column_id,
-                "value": str(install_id)
-            }},
-            headers={"Authorization": apiKey, "Content-Type": "application/json"},
-            timeout=30
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        items = data.get("data", {}).get("items_by_column_values", [])
-        if not items:
-            logger.warning(f"✗ Aucun item admin trouvé pour install_id={install_id}")
-            raise HTTPException(status_code=404, detail=f"Item admin non trouvé pour install_id={install_id}")
-
-        admin_item_id = int(items[0]["id"])
-        admin_item_name = items[0]["name"]
-        logger.info(f"✓ Item admin trouvé: {admin_item_name} (ID: {admin_item_id})")
-
-        # ÉTAPE 2: Upload V3-CE3X + XML (2 fichiers)
-        logger.info("→ ÉTAPE 2 - Upload V3-CE3X + XML")
-        v3_results = []
-        for uf in [v3_file1, v3_file2]:
-            file_bytes = await uf.read()
-            result = upload_file_bytes_to_column(apiKey, admin_item_id, col_v3, file_bytes, uf.filename)
-            logger.info(f"  ✓ {uf.filename} uploadé (asset id: {result.get('id')})")
-            v3_results.append({"file": uf.filename, "asset_id": result.get("id")})
-
-        # ÉTAPE 3: Upload CEE Final pdf (3 fichiers)
-        logger.info("→ ÉTAPE 3 - Upload CEE Final pdf")
-        cee_results = []
-        for uf in [cee_file1, cee_file2, cee_file3]:
-            file_bytes = await uf.read()
-            result = upload_file_bytes_to_column(apiKey, admin_item_id, col_cee, file_bytes, uf.filename)
-            logger.info(f"  ✓ {uf.filename} uploadé (asset id: {result.get('id')})")
-            cee_results.append({"file": uf.filename, "asset_id": result.get("id")})
-
-        logger.info("✓ Upload terminé avec succès")
+        v3_names = [v3_file1.filename, v3_file2.filename]
+        cee_names = [cee_file1.filename, cee_file2.filename, cee_file3.filename]
+        logger.info(f"  Fichiers V3: {v3_names}")
+        logger.info(f"  Fichiers CEE: {cee_names}")
         return {
-            "status": "ok",
-            "admin_item_id": admin_item_id,
-            "admin_item_name": admin_item_name,
-            "v3_ce3x_xml": v3_results,
-            "cee_final_pdf": cee_results
+            "status": "debug_ok",
+            "install_id": install_id,
+            "v3_files": v3_names,
+            "cee_files": cee_names
         }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"✗ Erreur upload-files: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erreur upload fichiers: {str(e)}")
+    except BaseException as e:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"✗ Erreur upload-files: {tb}")
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": tb})
