@@ -1515,7 +1515,6 @@ async def upload_files(
     logger.info("=" * 80)
     logger.info(f"Upload fichiers reçu - install_id: {install_id}")
 
-    apiKey = config["api_key"]
     admin_board_id = config["admin_board_id"]
     link_column_id = "text_mkregyd5"   # ID_Install dans tableau admin
     col_v3 = "file_mknxdbsc"           # V3-CE3X + XML
