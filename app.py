@@ -1416,6 +1416,11 @@ async def generate_taglist(request: Dict[Any, Any]):
         logger.info(f"  ville: '{ville}' (depuis location)")
         logger.info(f"  pays: '{pays}' (depuis location)")
 
+        # ville: fallback "abcd" si vide (champ obligatoire CAEX)
+        if not taglist.get('ville'):
+            taglist['ville'] = 'abcd'
+            logger.info("  ville: 'abcd' (fallback)")
+
         # geoPosition: priorité à la colonne dédiée, sinon depuis location
         if not taglist.get('geoPosition'):
             taglist['geoPosition'] = geo_from_location
