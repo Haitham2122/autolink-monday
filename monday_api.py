@@ -571,6 +571,69 @@ def add_file_to_column(api_token: str,
             os.remove(tmp_file_path)
 
 
+def upload_file_bytes_to_column(api_token: str,
+                                item_id: int,
+                                column_id: str,
+                                file_bytes: bytes,
+                                file_name: str) -> Dict[str, Any]:
+    """
+    Upload un fichier depuis des bytes vers une colonne fichier Monday.com.
+
+    Args:
+        api_token: Token d'authentification Monday.com
+        item_id: ID de l'item
+        column_id: ID de la colonne fichier
+        file_bytes: Contenu du fichier en bytes
+        file_name: Nom du fichier
+
+    Returns:
+        Résultat de la mutation
+    """
+    import tempfile
+    import os
+
+    suffix = os.path.splitext(file_name)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+        tmp_file.write(file_bytes)
+        tmp_file_path = tmp_file.name
+
+    try:
+        query = """
+        mutation ($file: File!) {
+          add_file_to_column(
+            item_id: %s
+            column_id: "%s"
+            file: $file
+          ) {
+            id
+          }
+        }
+        """ % (item_id, column_id)
+
+        with open(tmp_file_path, 'rb') as f:
+            files = {'variables[file]': (file_name, f, 'application/octet-stream')}
+            data = {'query': query}
+            headers = {"Authorization": api_token}
+
+            resp = requests.post(
+                "https://api.monday.com/v2/file",
+                files=files,
+                data=data,
+                headers=headers,
+                timeout=120
+            )
+            resp.raise_for_status()
+            result = resp.json()
+
+            if "errors" in result:
+                raise RuntimeError(result["errors"])
+
+            return result["data"]["add_file_to_column"]
+    finally:
+        if os.path.exists(tmp_file_path):
+            os.remove(tmp_file_path)
+
+
 def add_update_to_item(api_token: str,
                        item_id: int,
                        body: str) -> Dict[str, Any]:
