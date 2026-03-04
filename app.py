@@ -1607,3 +1607,158 @@ async def upload_files(
     except Exception as e:
         logger.error(f"✗ Erreur upload-files: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erreur upload fichiers: {str(e)}")
+
+
+# ============================================================
+# ENDPOINT: Webhook Admin → CAEX signed-callback
+# ============================================================
+
+@app.post("/send-signed-callback")
+async def send_signed_callback(request: Dict[Any, Any]):
+    """
+    Webhook Monday.com (board Admin) → récupère 4 fichiers + beetoolToken → envoie à CAEX signed-callback.
+    Colonnes:
+      - pdf_signe           → CEE V3 enregistré   (file_mkvfh15n)
+      - solicitud           → Justif enregistrement (file_mkvf411b)
+      - justification_pago  → Justif paiement      (file_mkvfzwf0)
+      - etiquette           → ETIQUETTES            (file_mkvfn3x7)
+      - beetoolToken        → ID_Install            (text_mkregyd5)
+    """
+    # Gérer le challenge Monday.com
+    if "challenge" in request:
+        return {"challenge": request["challenge"]}
+
+    logger.info("=" * 80)
+    logger.info("Webhook send-signed-callback reçu")
+
+    try:
+        event = request.get("event", {})
+        item_id = int(event.get("pulseId"))
+        logger.info(f"→ ÉTAPE 1 - Item admin ID: {item_id}")
+
+        # Colonnes à récupérer
+        file_col_mapping = {
+            "file_mkvfh15n": "pdf_signe",
+            "file_mkvf411b": "solicitud",
+            "file_mkvfzwf0": "justification_pago",
+            "file_mkvfn3x7": "etiquette",
+        }
+        columns_to_get = list(file_col_mapping.keys()) + ["text_mkregyd5"]
+
+        # ÉTAPE 2: Récupérer les données de l'item
+        logger.info("→ ÉTAPE 2 - Récupération des colonnes")
+        item_data = get_all_column_values_for_item(apiKey, item_id, columns_to_get)
+        if not item_data:
+            raise HTTPException(status_code=404, detail=f"Item {item_id} non trouvé")
+
+        # beetoolToken = ID_Install
+        beetool_token = item_data['columns'].get('text_mkregyd5', {}).get('text', '') or str(item_id)
+        logger.info(f"  beetoolToken (ID_Install): {beetool_token}")
+
+        # ÉTAPE 3: Récupérer les assets (public_urls)
+        logger.info("→ ÉTAPE 3 - Récupération des assets")
+        assets = get_item_assets(apiKey, item_id)
+        assets_by_id = {str(a['id']): a for a in assets}
+        logger.info(f"  {len(assets)} assets trouvés")
+
+        # ÉTAPE 4: Mapper chaque colonne fichier → public_url
+        logger.info("→ ÉTAPE 4 - Mapping fichiers par colonne")
+        files_to_send = {}
+
+        for col_id, caex_field in file_col_mapping.items():
+            col_data = item_data['columns'].get(col_id, {})
+            raw_value = col_data.get('value', '')
+
+            # Extraire les assetIds depuis la valeur JSON de la colonne
+            file_url = None
+            file_name = None
+            if raw_value:
+                try:
+                    parsed = json.loads(raw_value) if isinstance(raw_value, str) else raw_value
+                    if parsed and 'files' in parsed and parsed['files']:
+                        asset_id = str(parsed['files'][0]['assetId'])
+                        asset_info = assets_by_id.get(asset_id)
+                        if asset_info:
+                            file_url = asset_info.get('public_url')
+                            file_name = asset_info.get('name', f'{caex_field}.pdf')
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    pass
+
+            if file_url:
+                logger.info(f"  ✓ {caex_field}: {file_name} ({file_url[:60]}...)")
+                files_to_send[caex_field] = {"url": file_url, "name": file_name}
+            else:
+                logger.warning(f"  ✗ {caex_field}: aucun fichier trouvé dans colonne {col_id}")
+
+        if not files_to_send:
+            raise HTTPException(status_code=400, detail="Aucun fichier trouvé dans les colonnes")
+
+        # ÉTAPE 5: Télécharger les fichiers et envoyer à CAEX
+        logger.info("→ ÉTAPE 5 - Envoi vers CAEX signed-callback")
+        import tempfile
+        import os
+
+        temp_files = []
+        multipart_files = []
+
+        try:
+            for caex_field, file_info in files_to_send.items():
+                # Télécharger le fichier depuis Monday
+                dl_resp = requests.get(file_info["url"], timeout=60)
+                dl_resp.raise_for_status()
+
+                # Sauvegarder en fichier temp
+                suffix = os.path.splitext(file_info["name"])[1] or ".pdf"
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                tmp.write(dl_resp.content)
+                tmp.close()
+                temp_files.append(tmp.name)
+
+                multipart_files.append(
+                    (caex_field, (file_info["name"], open(tmp.name, 'rb'), 'application/octet-stream'))
+                )
+                logger.info(f"  ✓ {caex_field}: {file_info['name']} téléchargé ({len(dl_resp.content)/1024:.1f} KB)")
+
+            # Envoyer à CAEX
+            caex_url = "https://api.caex.tech/api/ce3x/signed-callback"
+            caex_resp = requests.post(
+                caex_url,
+                data={"beetoolToken": beetool_token},
+                files=multipart_files,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                },
+                timeout=120
+            )
+
+            logger.info(f"  Status CAEX: {caex_resp.status_code}")
+            logger.info(f"  Réponse CAEX: {caex_resp.text[:500]}")
+
+            return {
+                "status": "ok",
+                "item_id": item_id,
+                "item_name": item_data.get('name', ''),
+                "beetoolToken": beetool_token,
+                "files_sent": list(files_to_send.keys()),
+                "caex_status": caex_resp.status_code,
+                "caex_response": caex_resp.json() if caex_resp.headers.get('content-type', '').startswith('application/json') else caex_resp.text
+            }
+
+        finally:
+            # Fermer les fichiers ouverts et nettoyer les temp
+            for _, file_tuple in multipart_files:
+                try:
+                    file_tuple[1].close()
+                except:
+                    pass
+            for tmp_path in temp_files:
+                try:
+                    os.remove(tmp_path)
+                except:
+                    pass
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"✗ Erreur send-signed-callback: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erreur signed-callback: {str(e)}")
