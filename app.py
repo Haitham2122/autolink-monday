@@ -1549,8 +1549,34 @@ async def upload_files(
         admin_item_name = items[0]["name"]
         logger.info(f"✓ Item admin trouvé: {admin_item_name} (ID: {admin_item_id})")
 
-        # ÉTAPE 2: Upload V3-CE3X + XML (2 fichiers)
-        logger.info("→ ÉTAPE 2 - Upload V3-CE3X + XML")
+        # ÉTAPE 2: Vérifier le groupe de l'item admin
+        logger.info("→ ÉTAPE 2 - Vérification du groupe")
+        group_query = "query { items (ids: [%s]) { group { id title } } }" % admin_item_id
+        group_resp = requests.post(
+            "https://api.monday.com/v2",
+            json={"query": group_query},
+            headers={"Authorization": apiKey, "Content-Type": "application/json"},
+            timeout=30
+        )
+        group_resp.raise_for_status()
+        group_data = group_resp.json()
+        group_title = group_data.get("data", {}).get("items", [{}])[0].get("group", {}).get("title", "")
+        logger.info(f"  Groupe: '{group_title}'")
+
+        allowed_group = "Enregistrement CAEX"
+        if group_title != allowed_group:
+            logger.warning(f"✗ Groupe '{group_title}' != '{allowed_group}' → upload interdit")
+            raise HTTPException(status_code=403, detail="Modification interdite, le projet est en cours d'enregistrement")
+
+        # ÉTAPE 3: Vider les colonnes fichier avant upload
+        logger.info("→ ÉTAPE 3 - Vidage des colonnes fichier")
+        update_item_columns(apiKey, admin_item_id, admin_board_id, {col_v3: {"clear_all": True}})
+        logger.info(f"  ✓ Colonne V3-CE3X + XML vidée")
+        update_item_columns(apiKey, admin_item_id, admin_board_id, {col_cee: {"clear_all": True}})
+        logger.info(f"  ✓ Colonne CEE Final pdf vidée")
+
+        # ÉTAPE 4: Upload V3-CE3X + XML (2 fichiers)
+        logger.info("→ ÉTAPE 4 - Upload V3-CE3X + XML")
         v3_results = []
         for uf in [v3_file1, v3_file2]:
             file_bytes = await uf.read()
@@ -1558,8 +1584,8 @@ async def upload_files(
             logger.info(f"  ✓ {uf.filename} uploadé (asset id: {result.get('id')})")
             v3_results.append({"file": uf.filename, "asset_id": result.get("id")})
 
-        # ÉTAPE 3: Upload CEE Final pdf (3 fichiers)
-        logger.info("→ ÉTAPE 3 - Upload CEE Final pdf")
+        # ÉTAPE 5: Upload CEE Final pdf (3 fichiers)
+        logger.info("→ ÉTAPE 5 - Upload CEE Final pdf")
         cee_results = []
         for uf in [cee_file1, cee_file2, cee_file3]:
             file_bytes = await uf.read()
