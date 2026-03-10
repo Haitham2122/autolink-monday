@@ -1734,10 +1734,10 @@ async def send_signed_callback(request: Dict[Any, Any]):
             logger.info(f"  Status CAEX: {caex_resp.status_code}")
             logger.info(f"  Réponse CAEX: {caex_resp.text[:500]}")
 
-            # Si CAEX retourne 200/201, mettre le status "Deposé CAEX"
+            # Si CAEX retourne 200/201, mettre le status "Docs envoyé CAEX"
             if caex_resp.status_code in (200, 201):
-                logger.info("→ ÉTAPE 6 - Mise à jour status 'Deposé CAEX'")
-                update_status_column(apiKey, item_id, config["admin_board_id"], "status", "Deposé CAEX")
+                logger.info("→ ÉTAPE 6 - Mise à jour status 'Docs envoyé CAEX'")
+                update_status_column(apiKey, item_id, config["admin_board_id"], "status", "Docs envoyé CAEX")
                 logger.info("  ✓ Status mis à jour")
 
             return {
