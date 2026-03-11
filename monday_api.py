@@ -1,10 +1,32 @@
 """
 Module pour interagir avec l'API Monday.com
 """
+import time
+import logging
 import requests
 from typing import Dict, List, Any, Optional
 
 MONDAY_API_URL = "https://api.monday.com/v2"
+
+logger = logging.getLogger(__name__)
+
+
+def monday_request(method: str = "post", url: str = MONDAY_API_URL,
+                   max_retries: int = 5, **kwargs) -> requests.Response:
+    """
+    Wrapper pour les appels API Monday.com avec retry automatique sur 429.
+    Attend le temps indiqué par le header Retry-After, ou 5s par défaut,
+    avec backoff exponentiel.
+    """
+    for attempt in range(1, max_retries + 1):
+        resp = requests.request(method, url, **kwargs)
+        if resp.status_code != 429:
+            return resp
+        retry_after = int(resp.headers.get("Retry-After", 5))
+        wait = retry_after * attempt  # backoff
+        logger.warning(f"Monday API 429 - tentative {attempt}/{max_retries}, attente {wait}s...")
+        time.sleep(wait)
+    return resp  # retourner la dernière réponse même si 429
 
 
 def get_column_value_for_item(api_token: str,
@@ -38,8 +60,8 @@ def get_column_value_for_item(api_token: str,
         "Content-Type": "application/json"
     }
 
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
@@ -107,8 +129,8 @@ def get_item_ids_by_column_value(api_token: str,
         "Content-Type": "application/json"
     }
 
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
@@ -165,8 +187,8 @@ def get_all_column_values_for_item(api_token: str,
         "Content-Type": "application/json"
     }
 
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
@@ -249,18 +271,18 @@ def update_status_column(api_token: str,
         "Content-Type": "application/json"
     }
     
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         headers=headers,
         json={"query": query, "variables": variables},
         timeout=60
     )
     resp.raise_for_status()
     data = resp.json()
-    
+
     if "errors" in data:
         raise RuntimeError(data["errors"])
-    
+
     return data["data"]["change_simple_column_value"]["id"]
 
 
@@ -396,8 +418,8 @@ def update_item_columns(api_token: str,
         "Content-Type": "application/json"
     }
 
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": mutation, "variables": variables},
         headers=headers,
         timeout=30,
@@ -470,22 +492,22 @@ def get_item_assets(api_token: str, item_id: int) -> List[Dict[str, Any]]:
         "Content-Type": "application/json"
     }
     
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
     )
     resp.raise_for_status()
     data = resp.json()
-    
+
     if "errors" in data:
         raise RuntimeError(data["errors"])
-    
+
     items = data["data"]["items"]
     if not items:
         return []
-    
+
     return items[0].get("assets", [])
 
 
@@ -550,8 +572,8 @@ def add_file_to_column(api_token: str,
             
             # Utiliser l'endpoint file de Monday.com
             file_api_url = "https://api.monday.com/v2/file"
-            resp = requests.post(
-                file_api_url,
+            resp = monday_request(
+                url=file_api_url,
                 files=files,
                 data=data,
                 headers=headers,
@@ -615,8 +637,8 @@ def upload_file_bytes_to_column(api_token: str,
             data = {'query': query}
             headers = {"Authorization": api_token}
 
-            resp = requests.post(
-                "https://api.monday.com/v2/file",
+            resp = monday_request(
+                url="https://api.monday.com/v2/file",
                 files=files,
                 data=data,
                 headers=headers,
@@ -671,18 +693,18 @@ def add_update_to_item(api_token: str,
         "Content-Type": "application/json"
     }
     
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
     )
     resp.raise_for_status()
     data = resp.json()
-    
+
     if "errors" in data:
         raise RuntimeError(data["errors"])
-    
+
     return data["data"]["create_update"]
 
 
@@ -712,15 +734,15 @@ def check_item_exists(api_token: str, item_id: int) -> bool:
         "Content-Type": "application/json"
     }
     
-    resp = requests.post(
-        MONDAY_API_URL,
+    resp = monday_request(
+        url=MONDAY_API_URL,
         json={"query": query, "variables": variables},
         headers=headers,
         timeout=30,
     )
     resp.raise_for_status()
     data = resp.json()
-    
+
     if "errors" in data:
         return False
     

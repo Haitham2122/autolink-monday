@@ -20,7 +20,8 @@ from monday_api import (
     get_item_assets,
     add_update_to_item,
     check_item_exists,
-    upload_file_bytes_to_column
+    upload_file_bytes_to_column,
+    monday_request
 )
 
 # Configuration du logging
@@ -1531,8 +1532,8 @@ async def upload_files(
         }
         """ % (admin_board_id, link_column_id, install_id)
 
-        resp = requests.post(
-            "https://api.monday.com/v2",
+        resp = monday_request(
+            url="https://api.monday.com/v2",
             json={"query": query},
             headers={"Authorization": apiKey, "Content-Type": "application/json"},
             timeout=30
@@ -1552,8 +1553,8 @@ async def upload_files(
         # ÉTAPE 2: Vérifier le groupe de l'item admin
         logger.info("→ ÉTAPE 2 - Vérification du groupe")
         group_query = "query { items (ids: [%s]) { group { id title } } }" % admin_item_id
-        group_resp = requests.post(
-            "https://api.monday.com/v2",
+        group_resp = monday_request(
+            url="https://api.monday.com/v2",
             json={"query": group_query},
             headers={"Authorization": apiKey, "Content-Type": "application/json"},
             timeout=30
