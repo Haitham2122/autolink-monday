@@ -1564,7 +1564,7 @@ async def upload_files(
         group_title = group_data.get("data", {}).get("items", [{}])[0].get("group", {}).get("title", "")
         logger.info(f"  Groupe: '{group_title}'")
 
-        allowed_group = "Enregistrement CAEX"
+        allowed_group = "ATTENTE DPE CAEX"
         if group_title != allowed_group:
             logger.warning(f"✗ Groupe '{group_title}' != '{allowed_group}' → upload interdit")
             raise HTTPException(status_code=403, detail="Modification interdite, le projet est en cours d'enregistrement")
